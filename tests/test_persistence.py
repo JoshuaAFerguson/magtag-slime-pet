@@ -1,6 +1,6 @@
 import struct
 
-from slime.persistence import _FORMAT_V1, BLOB_SIZE, NVM_VERSION, pack, unpack
+from slime.persistence import _FORMAT_V1, _FORMAT_V2, BLOB_SIZE, NVM_VERSION, pack, unpack
 from slime.state import Mood, default_state, evolve
 
 
@@ -69,3 +69,32 @@ def test_unpack_rejects_unknown_version():
         assert False, "expected ValueError"
     except ValueError:
         pass
+
+
+def test_v3_roundtrip_includes_journal_day():
+    s = evolve(default_state(now=1.0), last_journal_day_ordinal=20630)
+    out = unpack(pack(s))
+    assert out.last_journal_day_ordinal == 20630
+
+
+def test_v2_blob_migrates_to_v3_defaulting_journal_day():
+    s = evolve(default_state(now=2.0), familiarity=30.0, visit_count=4, artifacts=3)
+    v2_blob = struct.pack(
+        _FORMAT_V2,
+        2,
+        s.mood.energy,
+        s.mood.comfort,
+        s.mood.curiosity,
+        s.mood.sleepiness,
+        s.mood.affection,
+        s.last_seen,
+        s.longest_absence,
+        s.first_boot,
+        s.total_boops,
+        s.familiarity,
+        s.visit_count,
+        s.artifacts,
+    )
+    out = unpack(v2_blob)
+    assert out.familiarity == 30.0 and out.visit_count == 4 and out.artifacts == 3
+    assert out.last_journal_day_ordinal == 0
