@@ -89,7 +89,19 @@ def main():
     state = step(state, inputs, 1.0)
     if "double_tap" in events:
         state = evolve(state, total_boops=state.total_boops + 1)
-    state = _maybe_greet_refresh(display, state, prev_expression, events, bool(events))
+
+    # On a cold boot/reload, always paint the creature so it shows itself when it
+    # powers on. On a deep-sleep wake we use the normal rate-limited policy to spare
+    # the panel (battery wakes are frequent).
+    if display and not power.woke_from_deep_sleep():
+        boot_quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
+        try:
+            display.render(state.expression, boot_quip or "")
+            state = evolve(state, last_seen=time.monotonic())
+        except Exception:
+            pass
+    else:
+        state = _maybe_greet_refresh(display, state, prev_expression, events, bool(events))
 
     persistence.save(state)
 

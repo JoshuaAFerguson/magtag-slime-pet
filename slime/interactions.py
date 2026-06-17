@@ -16,7 +16,7 @@ Detector = namedtuple("Detector", ("was_moving", "still_count"))
 _GRAVITY = 9.8
 _SHAKE_MAGNITUDE = 16.0   # m/s^2 total; brisk shake clears this
 _MOVE_DELTA = 1.5         # deviation from 1g that counts as "moving"
-_FLIP_Z = -6.0            # z this negative means upside-down
+_FLIP_Z = 6.0             # MagTag rests screen-up at z~-9.8; z this POSITIVE = screen-down/flipped
 _STILL_FOR_SETDOWN = 1    # consecutive still reads after motion => setdown
 
 
@@ -44,8 +44,8 @@ def detect(detector, reading):
     elif reading.tapped:
         events.append(TAP)
 
-    # Flip detection: z axis inverted (device upside-down)
-    if reading.z <= _FLIP_Z:
+    # Flip detection: screen-down / face-away (z swings positive on the MagTag).
+    if reading.z >= _FLIP_Z:
         events.append(FLIP)
 
     # Compute overall acceleration magnitude

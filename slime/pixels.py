@@ -13,7 +13,9 @@ class Pixels:
         self._power = digitalio.DigitalInOut(board.NEOPIXEL_POWER)
         self._power.direction = digitalio.Direction.OUTPUT
         self._power.value = True
-        self._np = neopixel.NeoPixel(board.NEOPIXEL, _NUM, auto_write=False)
+        # Cap brightness to keep peak current modest — protects against brownout on
+        # marginal USB supplies and suits the calm, low-glow aesthetic.
+        self._np = neopixel.NeoPixel(board.NEOPIXEL, _NUM, auto_write=False, brightness=0.3)
 
     def breathe(self, mood, t, rate=0.25):
         """Paint one breath frame for the current mood at time t (seconds)."""
