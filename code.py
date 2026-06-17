@@ -2,7 +2,16 @@
 
 import time
 
-from slime import dreams, friendship, persistence, power
+from slime import (
+    dreams,
+    friendship,
+    journal,
+    nettime,
+    persistence,
+    power,
+    seasons,
+    timekeeping,
+)
 from slime.forms import choose_render
 from slime.interactions import detect, new_detector
 from slime.mood import Inputs, step
@@ -17,6 +26,7 @@ _SCHEDULED = 21600.0
 _NAP_SECONDS = 1800.0
 _TICK = 0.05
 _SLEEPY_FRAME = 85.0  # sleepiness at/above which the slime counts as "sleeping" (loaf)
+_MOOD_BYTE = {"content": 0, "sleepy": 1, "happy": 2, "curious": 3, "contemplative": 4}
 
 
 def _new_adapter(factory):
@@ -58,17 +68,36 @@ def _gather(sensors, detector, last_event_time, now):
     return inputs, events, detector, last_event_time, gap
 
 
-def _render_frame(display, state):
-    """Render the current form + an expression-appropriate quip. Returns updated state."""
+def _sync_time():
+    """Try NTP once. Returns (synced_epoch, mono_at_sync, tz). epoch is None if unavailable."""
+    tz = nettime.tz_offset_hours()
+    epoch = nettime.sync()
+    if epoch is None:
+        return None, None, tz
+    return epoch, time.monotonic(), tz
+
+
+def _current_season(synced_epoch, mono_at_sync, tz):
+    """Season string if time is known this power-cycle, else None (offline-first)."""
+    if synced_epoch is None:
+        return None
+    epoch = timekeeping.now_epoch(synced_epoch, mono_at_sync, time.monotonic())
+    _, month, _ = timekeeping.civil_from_epoch(epoch, tz)
+    return seasons.season_of(month)
+
+
+def _render_frame(display, state, season=None):
+    """Render the current form (+ seasonal accent) and a quip. Returns updated state."""
     if not display:
         return state
     sleeping = state.mood.sleepiness >= _SLEEPY_FRAME
     ftier = friendship.tier(state.familiarity)
-    frame = choose_render(state.mood, ftier, sleeping)
+    frame = choose_render(state.mood, ftier, sleeping, season=season)
     tag = "bonded" if ftier >= 3 else state.expression
     quip = pick(tag) or pick(state.expression)
+    accent = seasons.accent_frame(season) if season else None
     try:
-        display.render_frame(frame, quip or "")
+        display.render_frame(frame, quip or "", accent_index=accent)
         state = evolve(state, last_seen=time.monotonic())
     except Exception:
         pass
@@ -101,6 +130,35 @@ def _dream_on_wake(display, sound, state):
     return evolve(state, artifacts=artifacts, last_seen=time.monotonic())
 
 
+def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring, events):
+    """On a new wall-clock day, append a journal record and show it. Returns (state, ring)."""
+    if not season:  # no trustworthy date this power-cycle -> never fabricate one
+        return state, ring
+    ordinal = timekeeping.day_ordinal(
+        timekeeping.now_epoch(synced_epoch, mono_at_sync, time.monotonic()), tz
+    )
+    if not timekeeping.is_new_day(state.last_journal_day_ordinal, ordinal):
+        return state, ring
+    record = journal.pack_record(
+        ordinal,
+        _MOOD_BYTE.get(state.expression, 0),
+        seasons.accent_frame(season),
+        0b1 if "double_tap" in events else 0,
+        friendship.tier(state.familiarity),
+    )
+    ring = journal.append(ring, record)
+    journal.save_ring(ring)
+    state = evolve(state, last_journal_day_ordinal=ordinal)
+    if display:
+        recs = journal.entries(ring)
+        line = journal.generate_entry(recs[-1], len(recs), _choice)
+        try:
+            display.render_journal([line])
+        except Exception:
+            pass
+    return state, ring
+
+
 def main():
     from slime.display import Display
     from slime.pixels import Pixels
@@ -116,10 +174,17 @@ def main():
     detector = new_detector()
     last_event_time = time.monotonic()
 
-    woke_deep = power.woke_from_deep_sleep()
+    # Time + season (offline-first): only spend WiFi/power on USB; never fake a date.
+    synced_epoch, mono_at_sync, tz = (None, None, -7.0)
+    if sensors.on_usb() if sensors else True:
+        synced_epoch, mono_at_sync, tz = _sync_time()
+    ring = journal.load_ring()
+    season = _current_season(synced_epoch, mono_at_sync, tz)
+    if season:
+        state = evolve(state, mood=seasons.apply_bias(state.mood, season))
 
+    woke_deep = power.woke_from_deep_sleep()
     # If we woke from a long deep-sleep nap, that was a "night" — dream first.
-    # (No autonomous boot chirp: the slime must never beep unprompted.)
     if woke_deep and dreams.should_dream(True, _NAP_SECONDS):
         state = _dream_on_wake(display, sound, state)
 
@@ -132,8 +197,11 @@ def main():
     fam, visits = friendship.update(state.familiarity, state.visit_count, events, gap)
     state = evolve(state, familiarity=fam, visit_count=visits)
 
-    # Cold boot always paints; a deep-sleep wake (post-dream) repaints the creature too.
-    state = _render_frame(display, state)
+    state, ring = _maybe_journal(
+        display, state, season, synced_epoch, mono_at_sync, tz, ring, events
+    )
+
+    state = _render_frame(display, state, season)
     persistence.save(state)
 
     if choose_run_mode(inputs.on_usb, inputs.battery) == CONTINUOUS:
@@ -150,6 +218,8 @@ def main():
                     state = evolve(state, total_boops=state.total_boops + 1)
                 fam, visits = friendship.update(state.familiarity, state.visit_count, events, gap)
                 state = evolve(state, familiarity=fam, visit_count=visits)
+                if season:
+                    state = evolve(state, mood=seasons.apply_bias(state.mood, season))
                 ftier = friendship.tier(state.familiarity)
                 # Sound ONLY on a deliberate greeting (double-tap) — never unprompted, so the
                 # slime won't beep from a desk bump or during a meeting. Dizzy stays pixel-only.
@@ -166,7 +236,7 @@ def main():
                     min_interval=_MIN_REFRESH,
                     scheduled_interval=_SCHEDULED,
                 ):
-                    state = _render_frame(display, state)
+                    state = _render_frame(display, state, season)
                 persistence.save(state)
             if pixels:
                 rate = 0.12 + (state.mood.energy / 100.0) * 0.35
