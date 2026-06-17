@@ -1,0 +1,4 @@
+# Copy to settings.toml on the CIRCUITPY drive and fill in. settings.toml is gitignored.
+WIFI_SSID = "your-network"
+WIFI_PASSWORD = "your-password"
+TZ_OFFSET = "-7"   # Phoenix (UTC-7, no DST)

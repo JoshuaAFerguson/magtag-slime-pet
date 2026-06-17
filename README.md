@@ -54,9 +54,12 @@ python assets/make_assets.py  # regenerate the pixel sprite sheet
    10.x): double-tap RESET to mount the bootloader drive, then drag the `.uf2` onto it.
 2. Install libraries:
    ```bash
-   circup install adafruit_lis3dh neopixel adafruit_display_text
+   circup install adafruit_lis3dh neopixel adafruit_display_text adafruit_ntp
    ```
 3. Copy `code.py`, the `slime/` package, and `assets/` to the `CIRCUITPY` drive.
+4. (Optional) Copy `settings.toml` (see `settings.toml.example`) with your WiFi credentials and
+   timezone to enable the daily journal and seasons via NTP time. Without it, the slime runs fully
+   offline and simply skips those time-dependent features.
 
 > ⚡ If the board enters safe mode with "Power dipped", use a powered USB port and a known-good
 > data cable — the E-Ink refresh plus NeoPixels need adequate current.

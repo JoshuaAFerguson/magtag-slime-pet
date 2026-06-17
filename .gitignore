@@ -10,5 +10,8 @@ venv/
 .coverage
 htmlcov/
 
+# Device secrets (WiFi creds) — never commit
+settings.toml
+
 # OS
 .DS_Store
