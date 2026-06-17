@@ -95,4 +95,9 @@ def main():
         power.nap(_NAP_SECONDS)
 
 
-main()
+# CircuitPython runs code.py as the main script (__name__ == "__main__"), so the
+# slime starts on the device. The guard prevents main() from running (and pulling
+# in hardware imports) if this file is ever imported on the host — e.g. the stdlib
+# `code` module that pdb imports, which this file would otherwise shadow.
+if __name__ == "__main__":
+    main()
