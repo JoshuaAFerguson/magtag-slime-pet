@@ -9,6 +9,11 @@ _LIGHT_MAX = 65535.0
 _BATTERY_MIN_V = 3.3   # ~empty LiPo
 _BATTERY_MAX_V = 4.2   # ~full LiPo
 
+# LIS3DH CLICK_SRC register and its single/double click bits.
+_CLICK_SRC = 0x39
+_SCLICK = 0x10
+_DCLICK = 0x20
+
 
 class Sensors:
     def __init__(self):
@@ -35,7 +40,20 @@ class Sensors:
         return supervisor.runtime.usb_connected
 
     def reading(self):
-        """Current AccelReading (m/s^2) with tap flags consumed from the sensor."""
+        """Current AccelReading (m/s^2), decoding single vs. double tap from CLICK_SRC.
+
+        With double-tap configured via set_tap(2, ...), the LIS3DH reports clicks in its
+        CLICK_SRC register (cleared on read). We decode the single (SCLICK) and double
+        (DCLICK) bits so the pure interaction layer can fire TAP vs. DOUBLE_TAP. If the
+        register read isn't supported by the installed library, we degrade to treating
+        any tap as a single tap rather than crashing.
+        """
         x, y, z = self._accel.acceleration
-        tapped = bool(self._accel.tapped)  # True on any tap since last read
-        return AccelReading(x=x, y=y, z=z, tapped=tapped, double_tapped=False)
+        single = double = False
+        try:
+            src = self._accel._read_register_byte(_CLICK_SRC)
+            double = bool(src & _DCLICK)
+            single = bool(src & _SCLICK)
+        except Exception:
+            single = bool(self._accel.tapped)
+        return AccelReading(x=x, y=y, z=z, tapped=single and not double, double_tapped=double)

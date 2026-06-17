@@ -17,44 +17,78 @@ _NAP_SECONDS = 1800.0      # battery nap length between wake cycles
 _TICK = 0.05               # breathing frame period (USB loop)
 
 
-def _gather(sensors, detector):
+def _gather(sensors, detector, last_event_time, now):
+    """Read the senses into mood Inputs. Tracks real elapsed time since the last event.
+
+    Returns (inputs, events, detector, last_event_time). When no sensors are available
+    the slime stays calm and present rather than crashing (Rule 1: never dies).
+    """
+    if sensors is None:
+        inputs = Inputs(light=0.5, battery=1.0, on_usb=True,
+                        seconds_since_interaction=now - last_event_time, events=())
+        return inputs, (), detector, last_event_time
+
     reading = sensors.reading()
     events, detector = detect(detector, reading)
+    if events:
+        last_event_time = now
     inputs = Inputs(
         light=sensors.light(),
         battery=sensors.battery(),
         on_usb=sensors.on_usb(),
-        seconds_since_interaction=0.0 if events else 60.0,
+        seconds_since_interaction=now - last_event_time,
         events=events,
     )
-    return inputs, events, detector
+    return inputs, events, detector, last_event_time
 
 
-def main():
-    now = time.monotonic()
-    state = persistence.load(now)
-    sensors = Sensors()
-    pixels = Pixels()
-    display = Display()
-    detector = new_detector()
-
-    # First thought of this wake.
-    inputs, events, detector = _gather(sensors, detector)
-    prev_expression = state.expression
-    state = step(state, inputs, 1.0)
-    if events:
-        state = state._replace(total_boops=state.total_boops + (1 if "double_tap" in events else 0))
-
-    quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
+def _maybe_greet_refresh(display, state, prev_expression, events, significant):
+    """Render if the refresh policy allows; returns a possibly-updated state. Never raises."""
+    if not display:
+        return state
     if should_refresh(time.monotonic(), state.last_seen,
                       pose_changed=(state.expression != prev_expression),
-                      significant_event=bool(events),
+                      significant_event=significant,
                       min_interval=_MIN_REFRESH, scheduled_interval=_SCHEDULED):
+        quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
         try:
             display.render(state.expression, quip or "")
             state = state._replace(last_seen=time.monotonic())
         except Exception:
             pass  # never let a render failure kill the creature
+    return state
+
+
+def main():
+    now = time.monotonic()
+    state = persistence.load(now)
+
+    # Build the hardware adapters defensively — a failed sensor/display must not
+    # kill the creature; it simply lives in a degraded but calm state.
+    try:
+        sensors = Sensors()
+    except Exception:
+        sensors = None
+    try:
+        pixels = Pixels()
+    except Exception:
+        pixels = None
+    try:
+        display = Display()
+    except Exception:
+        display = None
+
+    detector = new_detector()
+    last_event_time = time.monotonic()
+
+    # First thought of this wake.
+    now = time.monotonic()
+    inputs, events, detector, last_event_time = _gather(sensors, detector, last_event_time, now)
+    prev_expression = state.expression
+    state = step(state, inputs, 1.0)
+    if "double_tap" in events:
+        state = state._replace(total_boops=state.total_boops + 1)
+    state = _maybe_greet_refresh(display, state, prev_expression, events, bool(events))
 
     persistence.save(state)
 
@@ -62,36 +96,33 @@ def main():
         # Always-breathing desk mode.
         t0 = time.monotonic()
         while True:
-            inputs, events, detector = _gather(sensors, detector)
+            now = time.monotonic()
+            inputs, events, detector, last_event_time = _gather(sensors, detector, last_event_time, now)
             if events:
                 prev = state.expression
                 state = step(state, inputs, 1.0)
                 if "double_tap" in events:
                     state = state._replace(total_boops=state.total_boops + 1)
-                if state.behavior == "dizzy":
+                if state.behavior == "dizzy" and pixels:
                     pixels.flash((120, 0, 0))
                     time.sleep(0.4)
-                if should_refresh(time.monotonic(), state.last_seen,
-                                  pose_changed=(state.expression != prev),
-                                  significant_event=True,
-                                  min_interval=_MIN_REFRESH, scheduled_interval=_SCHEDULED):
-                    try:
-                        display.render(state.expression, pick(
-                            state.behavior if state.behavior == "greeting" else state.expression) or "")
-                        state = state._replace(last_seen=time.monotonic())
-                    except Exception:
-                        pass
+                # Only a greeting forces an immediate refresh; shakes/flips show via
+                # NeoPixels and must not thrash the rate-limited E-Ink panel.
+                state = _maybe_greet_refresh(display, state, prev, events, "double_tap" in events)
                 persistence.save(state)
-            rate = 0.12 + (state.mood.energy / 100.0) * 0.35  # brisker when energetic
-            pixels.breathe(state.mood, time.monotonic() - t0, rate=rate)
+            if pixels:
+                rate = 0.12 + (state.mood.energy / 100.0) * 0.35  # brisker when energetic
+                pixels.breathe(state.mood, time.monotonic() - t0, rate=rate)
             time.sleep(_TICK)
     else:
         # Battery: a short greeting breath, then nap.
         t0 = time.monotonic()
         while time.monotonic() - t0 < 4.0:
-            pixels.breathe(state.mood, time.monotonic() - t0, rate=0.2)
+            if pixels:
+                pixels.breathe(state.mood, time.monotonic() - t0, rate=0.2)
             time.sleep(_TICK)
-        pixels.off()
+        if pixels:
+            pixels.off()
         power.nap(_NAP_SECONDS)
 
 

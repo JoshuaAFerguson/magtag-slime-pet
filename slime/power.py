@@ -4,11 +4,6 @@ import time
 import board
 
 
-def woke_from_deep_sleep():
-    """True if this run began by waking from deep sleep."""
-    return alarm.wake_alarm is not None
-
-
 def nap(seconds, motion_pin=board.ACCELEROMETER_INTERRUPT):
     """Enter deep sleep until `seconds` elapse OR the accelerometer signals motion.
 

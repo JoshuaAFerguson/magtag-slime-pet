@@ -34,7 +34,7 @@ def expression_to_pose(expression: str) -> int:
 def mood_to_rgb(mood) -> tuple:
     """Pick a NeoPixel color triple from the dominant mood (shares mood.derive_expression)."""
     expr = derive_expression(mood)
-    return _EXPRESSION_RGB[expr]
+    return _EXPRESSION_RGB.get(expr, _EXPRESSION_RGB["content"])
 
 
 def breath_brightness(t: float, rate: float = 0.25, lo: float = 0.05, hi: float = 0.5) -> float:
