@@ -119,12 +119,9 @@ def main():
     woke_deep = power.woke_from_deep_sleep()
 
     # If we woke from a long deep-sleep nap, that was a "night" — dream first.
+    # (No autonomous boot chirp: the slime must never beep unprompted.)
     if woke_deep and dreams.should_dream(True, _NAP_SECONDS):
         state = _dream_on_wake(display, sound, state)
-    elif not woke_deep:
-        # Cold boot/reload: greet the owner with a wake chirp.
-        if sound:
-            sound.play(pick_motif("wake"))
 
     inputs, events, detector, last_event_time, gap = _gather(
         sensors, detector, last_event_time, now
@@ -154,11 +151,10 @@ def main():
                 fam, visits = friendship.update(state.familiarity, state.visit_count, events, gap)
                 state = evolve(state, familiarity=fam, visit_count=visits)
                 ftier = friendship.tier(state.familiarity)
-                if sound:
-                    if state.behavior == "dizzy":
-                        sound.play(pick_motif("dizzy"))
-                    elif state.behavior == "greeting":
-                        sound.play(pick_motif("greeting", ftier))
+                # Sound ONLY on a deliberate greeting (double-tap) — never unprompted, so the
+                # slime won't beep from a desk bump or during a meeting. Dizzy stays pixel-only.
+                if sound and state.behavior == "greeting":
+                    sound.play(pick_motif("greeting", ftier))
                 if state.behavior == "dizzy" and pixels:
                     pixels.flash((120, 0, 0))
                     time.sleep(0.4)

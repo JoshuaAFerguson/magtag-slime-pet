@@ -95,8 +95,10 @@ Exactly one sprite frame is rendered, so the display remains a single `TileGrid`
   warble, sleepy descending notes, wake chirp, dream-found sparkle).
 - `sound.py` plays the selected motif on `board.SPEAKER` (PWM square tones), enabling
   `board.SPEAKER_ENABLE` around playback.
-- Calm by default: motifs fire on greetings, waking, dreams, and dizzy — not continuously. Higher
-  familiarity tiers unlock a few extra motifs.
+- Calm and **never unprompted**: a motif plays only on a deliberate **greeting (double-tap)** and on
+  a wake-from-sleep **dream**. No boot/wake chirp and no dizzy beep — accidental desk bumps or a
+  reset must never make noise (it must not disrupt a meeting). Higher familiarity tiers unlock a
+  richer greeting motif.
 
 ## Dreams + Artifacts
 
