@@ -15,6 +15,9 @@ State = namedtuple(
         "first_boot",  # float seconds
         "expression",  # str
         "behavior",  # str
+        "familiarity",  # float 0..100, only ever rises
+        "visit_count",  # int
+        "artifacts",  # int bitmask of collected dream artifacts
     ),
 )
 
@@ -39,6 +42,9 @@ def default_state(now=0.0):
         first_boot=now,
         expression="content",
         behavior="idle",
+        familiarity=0.0,
+        visit_count=0,
+        artifacts=0,
     )
 
 
@@ -56,4 +62,7 @@ def evolve(state, **changes):
         first_boot=changes.get("first_boot", state.first_boot),
         expression=changes.get("expression", state.expression),
         behavior=changes.get("behavior", state.behavior),
+        familiarity=changes.get("familiarity", state.familiarity),
+        visit_count=changes.get("visit_count", state.visit_count),
+        artifacts=changes.get("artifacts", state.artifacts),
     )
