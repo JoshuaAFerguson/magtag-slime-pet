@@ -51,16 +51,60 @@ class Display:
         )
         self._root.append(self._quip)
 
+        # Seasonal corner accent (top-right), hidden until a season is known.
+        self._accent_bmp = displayio.OnDiskBitmap("/assets/accents.bmp")
+        self._accent = displayio.TileGrid(
+            self._accent_bmp,
+            pixel_shader=self._accent_bmp.pixel_shader,
+            width=1,
+            height=1,
+            tile_width=28,
+            tile_height=28,
+        )
+        self._accent.x = self._display.width - 32
+        self._accent.y = 4
+        self._accent_hidden = True
+
     def render(self, expression, quip_text=""):
         """Render by expression name (maps to a frame). Kept for callers using expressions."""
         self.render_frame(expression_to_pose(expression), quip_text)
 
-    def render_frame(self, frame_index, quip_text=""):
-        """Set the sprite frame + quip and refresh the panel (blocking, slow)."""
+    def render_frame(self, frame_index, quip_text="", accent_index=None):
+        """Set the sprite frame + quip (+ optional seasonal accent) and refresh."""
         self._tile[0] = frame_index
         self._quip.text = quip_text or ""
+        if accent_index is None:
+            if not self._accent_hidden and self._accent in self._root:
+                self._root.remove(self._accent)
+                self._accent_hidden = True
+        else:
+            self._accent[0] = accent_index
+            if self._accent_hidden:
+                self._root.append(self._accent)
+                self._accent_hidden = False
         self._display.root_group = self._root
         # Respect the panel's mandated minimum refresh interval, yielding while we wait.
+        while self._display.time_to_refresh > 0:
+            time.sleep(0.05)
+        self._display.refresh()
+
+    def render_journal(self, lines):
+        """Full-screen journal: a list of short lines, centered, then a slow refresh."""
+        group = displayio.Group()
+        bg = displayio.Bitmap(self._display.width, self._display.height, 1)
+        palette = displayio.Palette(1)
+        palette[0] = 0xFFFFFF
+        group.append(displayio.TileGrid(bg, pixel_shader=palette))
+        n = len(lines)
+        for i, text in enumerate(lines):
+            lbl = label.Label(terminalio.FONT, text=text, color=0x000000, scale=1)
+            lbl.anchor_point = (0.5, 0.5)
+            lbl.anchored_position = (
+                self._display.width // 2,
+                int(self._display.height // 2 + (i - (n - 1) / 2) * 18),
+            )
+            group.append(lbl)
+        self._display.root_group = group
         while self._display.time_to_refresh > 0:
             time.sleep(0.05)
         self._display.refresh()

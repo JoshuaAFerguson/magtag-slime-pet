@@ -75,3 +75,11 @@ def test_evolve_updates_new_fields():
     assert s2.visit_count == 3
     assert s2.artifacts == 5
     assert s.familiarity == 0.0  # original unchanged
+
+
+def test_state_has_last_journal_day_ordinal():
+    s = default_state(now=0.0)
+    assert s.last_journal_day_ordinal == 0
+    s2 = evolve(s, last_journal_day_ordinal=42)
+    assert s2.last_journal_day_ordinal == 42
+    assert s.last_journal_day_ordinal == 0

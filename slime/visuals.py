@@ -18,6 +18,10 @@ POSE_INDEX = {
     "explorer": 9,
     "crowned": 10,
     "wisp": 11,
+    "spring_form": 12,
+    "summer_form": 13,
+    "autumn_form": 14,
+    "winter_form": 15,
 }
 
 # Mood-tinted NeoPixel colors (R, G, B), 0..255.

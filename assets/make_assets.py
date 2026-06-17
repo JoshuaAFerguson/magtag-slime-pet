@@ -3,6 +3,8 @@
 Run: python3 assets/make_assets.py
 """
 
+import math
+
 from PIL import Image, ImageDraw
 
 FRAME = 64
@@ -19,6 +21,10 @@ POSES = [
     "explorer",
     "crowned",
     "wisp",
+    "spring_form",
+    "summer_form",
+    "autumn_form",
+    "winter_form",
 ]
 BLACK, GRAY, LIGHT, WHITE = 0, 1, 2, 3  # palette indices
 
@@ -97,6 +103,23 @@ def draw_pose(d, ox, pose):
             d.rectangle([wx, 50, wx + 6, 54], fill=GRAY)
         d.rectangle([ox + 26, 30, ox + 30, 36], fill=BLACK)
         d.rectangle([ox + 36, 30, ox + 40, 36], fill=BLACK)
+    elif pose == "spring_form":
+        _blob(d, ox)
+        d.rectangle([ox + 30, 6, ox + 34, 16], fill=BLACK)  # stem
+        d.ellipse([ox + 22, 0, ox + 34, 10], fill=GRAY, outline=BLACK)  # leaf
+        _eyes(d, ox, 32)
+    elif pose == "summer_form":
+        _blob(d, ox)
+        d.rectangle([ox + 20, 30, ox + 44, 38], fill=BLACK)  # shades
+        d.rectangle([ox + 30, 32, ox + 34, 36], fill=GRAY)
+    elif pose == "autumn_form":
+        _blob(d, ox)
+        d.polygon([(ox + 32, 4), (ox + 26, 14), (ox + 38, 14)], fill=GRAY, outline=BLACK)  # leaf
+        _eyes(d, ox, 32)
+    elif pose == "winter_form":
+        _blob(d, ox)
+        d.rectangle([ox + 10, 44, ox + 54, 52], fill=BLACK)  # scarf
+        _eyes(d, ox, 32)
     else:  # content
         _eyes(d, ox, 34)
         d.rectangle([ox + 28, 47, ox + 40, 50], fill=BLACK)
@@ -111,6 +134,32 @@ def main():
         draw_pose(d, i * FRAME, pose)
     sheet.save("assets/slime.bmp")
     print(f"wrote assets/slime.bmp ({sheet.width}x{sheet.height}, {len(POSES)} frames)")
+
+    accents = Image.new("P", (28 * 4, 28), WHITE)
+    accents.putpalette([0, 0, 0, 90, 90, 90, 170, 170, 170, 255, 255, 255] + [0] * (256 * 3 - 12))
+    ad = ImageDraw.Draw(accents)
+    # 0 spring bud, 1 summer sun, 2 autumn leaf, 3 winter snowflake
+    ad.ellipse([4, 6, 16, 18], fill=GRAY, outline=BLACK)
+    ad.rectangle([9, 16, 11, 24], fill=BLACK)
+    ad.ellipse([28 + 6, 6, 28 + 18, 18], fill=GRAY, outline=BLACK)
+    for ang in range(0, 360, 45):
+        cx, cy = 28 + 12, 12
+        ad.line(
+            [
+                cx,
+                cy,
+                int(cx + 11 * math.cos(math.radians(ang))),
+                int(cy + 11 * math.sin(math.radians(ang))),
+            ],
+            fill=BLACK,
+        )
+    ad.polygon([(56 + 12, 4), (56 + 5, 18), (56 + 19, 18)], fill=GRAY, outline=BLACK)
+    cx, cy = 84 + 12, 12
+    for ang in range(0, 180, 45):
+        dx, dy = int(11 * math.cos(math.radians(ang))), int(11 * math.sin(math.radians(ang)))
+        ad.line([cx - dx, cy - dy, cx + dx, cy + dy], fill=BLACK)
+    accents.save("assets/accents.bmp")
+    print(f"wrote assets/accents.bmp ({accents.width}x{accents.height}, 4 frames)")
 
 
 if __name__ == "__main__":
