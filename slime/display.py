@@ -52,11 +52,41 @@ class Display:
         self._root.append(self._quip)
 
     def render(self, expression, quip_text=""):
-        """Set the pose frame + quip and refresh the panel (blocking, slow)."""
-        self._tile[0] = expression_to_pose(expression)
+        """Render by expression name (maps to a frame). Kept for callers using expressions."""
+        self.render_frame(expression_to_pose(expression), quip_text)
+
+    def render_frame(self, frame_index, quip_text=""):
+        """Set the sprite frame + quip and refresh the panel (blocking, slow)."""
+        self._tile[0] = frame_index
         self._quip.text = quip_text or ""
         self._display.root_group = self._root
         # Respect the panel's mandated minimum refresh interval, yielding while we wait.
+        while self._display.time_to_refresh > 0:
+            time.sleep(0.05)
+        self._display.refresh()
+
+    def render_dream(self, dream_text, artifact_name=""):
+        """Full-screen dream: the dream line, plus any artifact found, then a slow refresh."""
+        group = displayio.Group()
+        bg = displayio.Bitmap(self._display.width, self._display.height, 1)
+        palette = displayio.Palette(1)
+        palette[0] = 0xFFFFFF
+        group.append(displayio.TileGrid(bg, pixel_shader=palette))
+
+        dream = label.Label(terminalio.FONT, text=dream_text, color=0x000000, scale=1)
+        dream.anchor_point = (0.5, 0.5)
+        dream.anchored_position = (self._display.width // 2, self._display.height // 2 - 14)
+        group.append(dream)
+
+        if artifact_name:
+            found = label.Label(
+                terminalio.FONT, text="found: " + artifact_name, color=0x000000, scale=1
+            )
+            found.anchor_point = (0.5, 0.5)
+            found.anchored_position = (self._display.width // 2, self._display.height // 2 + 14)
+            group.append(found)
+
+        self._display.root_group = group
         while self._display.time_to_refresh > 0:
             time.sleep(0.05)
         self._display.refresh()
