@@ -36,3 +36,13 @@ def test_generate_entry_mentions_day_number_and_is_a_string():
     line = generate_entry(rec, day_number=14, choice=lambda s: s[0])
     assert line.startswith("Day 14")
     assert line.endswith(".")
+
+
+def test_entry_season_word_matches_seasons_encoding():
+    # The season byte is seasons.accent_frame(); the entry must use the matching ambience word.
+    from slime.seasons import accent_frame
+
+    summer = (100, 0, accent_frame("summer"), 0, 0)
+    winter = (100, 0, accent_frame("winter"), 0, 0)
+    assert "long warm hours" in generate_entry(summer, 1, lambda s: s[0])
+    assert "still cold air" in generate_entry(winter, 1, lambda s: s[0])

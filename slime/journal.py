@@ -22,11 +22,12 @@ _MOOD_WORD = {
     3: "i wondered at things",
     4: "i thought of far places",
 }
+# Keyed by seasons.accent_frame(): spring=0, summer=1, autumn=2, winter=3.
 _SEASON_WORD = {
-    0: "still cold air",
-    1: "green light",
-    2: "long warm hours",
-    3: "soft gray light",
+    0: "green light",
+    1: "long warm hours",
+    2: "soft gray light",
+    3: "still cold air",
 }
 
 
