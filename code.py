@@ -2,125 +2,145 @@
 
 import time
 
-from slime import persistence, power
-from slime.display import Display
+from slime import dreams, friendship, persistence, power
+from slime.forms import choose_render
 from slime.interactions import detect, new_detector
 from slime.mood import Inputs, step
-from slime.pixels import Pixels
+from slime.motifs import pick_motif
 from slime.quips import pick
-from slime.sensors import Sensors
 from slime.state import evolve
 from slime.visuals import CONTINUOUS, choose_run_mode, should_refresh
 
-# Refresh policy constants.
-_MIN_REFRESH = 180.0  # seconds; protect the panel from flicker
-_SCHEDULED = 21600.0  # seconds (~4x/day) for an unconditional refresh
-_NAP_SECONDS = 1800.0  # battery nap length between wake cycles
-_TICK = 0.05  # breathing frame period (USB loop)
+# Refresh / timing constants.
+_MIN_REFRESH = 180.0
+_SCHEDULED = 21600.0
+_NAP_SECONDS = 1800.0
+_TICK = 0.05
+_SLEEPY_FRAME = 85.0  # sleepiness at/above which the slime counts as "sleeping" (loaf)
+
+
+def _new_adapter(factory):
+    """Construct a hardware adapter, returning None on failure (never kill the creature)."""
+    try:
+        return factory()
+    except Exception:
+        return None
 
 
 def _gather(sensors, detector, last_event_time, now):
-    """Read the senses into mood Inputs. Tracks real elapsed time since the last event.
-
-    Returns (inputs, events, detector, last_event_time). When no sensors are available
-    the slime stays calm and present rather than crashing (Rule 1: never dies).
-    """
+    """Read senses into Inputs; return (inputs, events, detector, last_event_time, gap)."""
     if sensors is None:
-        inputs = Inputs(
-            light=0.5,
-            battery=1.0,
-            on_usb=True,
-            seconds_since_interaction=now - last_event_time,
-            events=(),
+        return (
+            Inputs(
+                light=0.5,
+                battery=1.0,
+                on_usb=True,
+                seconds_since_interaction=now - last_event_time,
+                events=(),
+            ),
+            (),
+            detector,
+            last_event_time,
+            now - last_event_time,
         )
-        return inputs, (), detector, last_event_time
-
     reading = sensors.reading()
     events, detector = detect(detector, reading)
+    gap = now - last_event_time
     if events:
         last_event_time = now
     inputs = Inputs(
         light=sensors.light(),
         battery=sensors.battery(),
         on_usb=sensors.on_usb(),
-        seconds_since_interaction=now - last_event_time,
+        seconds_since_interaction=gap,
         events=events,
     )
-    return inputs, events, detector, last_event_time
+    return inputs, events, detector, last_event_time, gap
 
 
-def _maybe_greet_refresh(display, state, prev_expression, events, significant):
-    """Render if the refresh policy allows; returns a possibly-updated state. Never raises."""
+def _render_frame(display, state):
+    """Render the current form + an expression-appropriate quip. Returns updated state."""
     if not display:
         return state
-    if should_refresh(
-        time.monotonic(),
-        state.last_seen,
-        pose_changed=(state.expression != prev_expression),
-        significant_event=significant,
-        min_interval=_MIN_REFRESH,
-        scheduled_interval=_SCHEDULED,
-    ):
-        quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
-        try:
-            display.render(state.expression, quip or "")
-            state = evolve(state, last_seen=time.monotonic())
-        except Exception:
-            pass  # never let a render failure kill the creature
+    sleeping = state.mood.sleepiness >= _SLEEPY_FRAME
+    ftier = friendship.tier(state.familiarity)
+    frame = choose_render(state.mood, ftier, sleeping)
+    tag = "bonded" if ftier >= 3 else state.expression
+    quip = pick(tag) or pick(state.expression)
+    try:
+        display.render_frame(frame, quip or "")
+        state = evolve(state, last_seen=time.monotonic())
+    except Exception:
+        pass
     return state
 
 
+def _choice(seq):
+    """Pick a random element (CircuitPython has random.choice)."""
+    import random
+
+    return random.choice(seq)
+
+
+def _dream_on_wake(display, sound, state):
+    """Generate and show a dream + maybe an artifact. Returns updated state."""
+    fam_tier = friendship.tier(state.familiarity)
+    line, artifact_id = dreams.generate(fam_tier, state.artifacts, _choice)
+    artifact_name = ""
+    artifacts = state.artifacts
+    if artifact_id is not None and not dreams.has_artifact(artifacts, artifact_id):
+        artifacts = dreams.add_artifact(artifacts, artifact_id)
+        artifact_name = dreams.artifact_name(artifact_id)
+    if sound:
+        sound.play(pick_motif("dream"))
+    if display:
+        try:
+            display.render_dream(line, artifact_name)
+        except Exception:
+            pass
+    return evolve(state, artifacts=artifacts, last_seen=time.monotonic())
+
+
 def main():
+    from slime.display import Display
+    from slime.pixels import Pixels
+    from slime.sensors import Sensors
+    from slime.sound import Sound
+
     now = time.monotonic()
     state = persistence.load(now)
-
-    # Build the hardware adapters defensively — a failed sensor/display must not
-    # kill the creature; it simply lives in a degraded but calm state.
-    try:
-        sensors = Sensors()
-    except Exception:
-        sensors = None
-    try:
-        pixels = Pixels()
-    except Exception:
-        pixels = None
-    try:
-        display = Display()
-    except Exception:
-        display = None
-
+    sensors = _new_adapter(Sensors)
+    pixels = _new_adapter(Pixels)
+    display = _new_adapter(Display)
+    sound = _new_adapter(Sound)
     detector = new_detector()
     last_event_time = time.monotonic()
 
-    # First thought of this wake.
-    now = time.monotonic()
-    inputs, events, detector, last_event_time = _gather(sensors, detector, last_event_time, now)
-    prev_expression = state.expression
+    woke_deep = power.woke_from_deep_sleep()
+
+    # If we woke from a long deep-sleep nap, that was a "night" — dream first.
+    # (No autonomous boot chirp: the slime must never beep unprompted.)
+    if woke_deep and dreams.should_dream(True, _NAP_SECONDS):
+        state = _dream_on_wake(display, sound, state)
+
+    inputs, events, detector, last_event_time, gap = _gather(
+        sensors, detector, last_event_time, now
+    )
     state = step(state, inputs, 1.0)
     if "double_tap" in events:
         state = evolve(state, total_boops=state.total_boops + 1)
+    fam, visits = friendship.update(state.familiarity, state.visit_count, events, gap)
+    state = evolve(state, familiarity=fam, visit_count=visits)
 
-    # On a cold boot/reload, always paint the creature so it shows itself when it
-    # powers on. On a deep-sleep wake we use the normal rate-limited policy to spare
-    # the panel (battery wakes are frequent).
-    if display and not power.woke_from_deep_sleep():
-        boot_quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
-        try:
-            display.render(state.expression, boot_quip or "")
-            state = evolve(state, last_seen=time.monotonic())
-        except Exception:
-            pass
-    else:
-        state = _maybe_greet_refresh(display, state, prev_expression, events, bool(events))
-
+    # Cold boot always paints; a deep-sleep wake (post-dream) repaints the creature too.
+    state = _render_frame(display, state)
     persistence.save(state)
 
     if choose_run_mode(inputs.on_usb, inputs.battery) == CONTINUOUS:
-        # Always-breathing desk mode.
         t0 = time.monotonic()
         while True:
             now = time.monotonic()
-            inputs, events, detector, last_event_time = _gather(
+            inputs, events, detector, last_event_time, gap = _gather(
                 sensors, detector, last_event_time, now
             )
             if events:
@@ -128,19 +148,31 @@ def main():
                 state = step(state, inputs, 1.0)
                 if "double_tap" in events:
                     state = evolve(state, total_boops=state.total_boops + 1)
+                fam, visits = friendship.update(state.familiarity, state.visit_count, events, gap)
+                state = evolve(state, familiarity=fam, visit_count=visits)
+                ftier = friendship.tier(state.familiarity)
+                # Sound ONLY on a deliberate greeting (double-tap) — never unprompted, so the
+                # slime won't beep from a desk bump or during a meeting. Dizzy stays pixel-only.
+                if sound and state.behavior == "greeting":
+                    sound.play(pick_motif("greeting", ftier))
                 if state.behavior == "dizzy" and pixels:
                     pixels.flash((120, 0, 0))
                     time.sleep(0.4)
-                # Only a greeting forces an immediate refresh; shakes/flips show via
-                # NeoPixels and must not thrash the rate-limited E-Ink panel.
-                state = _maybe_greet_refresh(display, state, prev, events, "double_tap" in events)
+                if should_refresh(
+                    time.monotonic(),
+                    state.last_seen,
+                    pose_changed=(state.expression != prev),
+                    significant_event=("double_tap" in events),
+                    min_interval=_MIN_REFRESH,
+                    scheduled_interval=_SCHEDULED,
+                ):
+                    state = _render_frame(display, state)
                 persistence.save(state)
             if pixels:
-                rate = 0.12 + (state.mood.energy / 100.0) * 0.35  # brisker when energetic
+                rate = 0.12 + (state.mood.energy / 100.0) * 0.35
                 pixels.breathe(state.mood, time.monotonic() - t0, rate=rate)
             time.sleep(_TICK)
     else:
-        # Battery: a short greeting breath, then nap.
         t0 = time.monotonic()
         while time.monotonic() - t0 < 4.0:
             if pixels:
@@ -148,12 +180,11 @@ def main():
             time.sleep(_TICK)
         if pixels:
             pixels.off()
+        if sound:
+            sound.play(pick_motif("sleepy"))
         power.nap(_NAP_SECONDS)
 
 
-# CircuitPython runs code.py as the main script (__name__ == "__main__"), so the
-# slime starts on the device. The guard prevents main() from running (and pulling
-# in hardware imports) if this file is ever imported on the host — e.g. the stdlib
-# `code` module that pdb imports, which this file would otherwise shadow.
+# CircuitPython runs code.py as __main__; the guard keeps host imports from running main().
 if __name__ == "__main__":
     main()

@@ -18,3 +18,8 @@ def test_night_segment_makes_it_sleepy_by_morning():
 def test_interaction_tick_records_greeting_behavior():
     timeline = run_day()
     assert any(t.behavior == "greeting" for t in timeline)
+
+
+def test_repeated_visits_grow_familiarity():
+    timeline = run_day()
+    assert timeline[-1].familiarity > timeline[0].familiarity

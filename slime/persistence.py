@@ -1,21 +1,30 @@
-"""Persist core state to microcontroller NVM. pack/unpack are pure; save/load touch hardware."""
+"""Persist core state to microcontroller NVM. pack/unpack pure; save/load touch hardware."""
 
 import struct
 
 from slime import mood as mood_engine
 from slime.state import Mood, State, default_state
 
-NVM_VERSION = 1
-# version(B) + 5 mood floats + last_seen + longest_absence + first_boot (f) + total_boops (I)
-_FORMAT = "<B5ffffI"
-BLOB_SIZE = struct.calcsize(_FORMAT)
+NVM_VERSION = 2
+
+# v1 (Phase 0): version + 5 mood floats + last_seen + longest_absence +
+# first_boot + total_boops.
+_FORMAT_V1 = "<B5ffffI"
+_SIZE_V1 = struct.calcsize(_FORMAT_V1)
+
+# v2 (Phase 1): v1 fields + familiarity (f) + visit_count (I) +
+# artifacts (I).
+_FORMAT_V2 = "<B5ffffIfII"
+_SIZE_V2 = struct.calcsize(_FORMAT_V2)
+
+BLOB_SIZE = _SIZE_V2
 
 
 def pack(state):
-    """Serialize the durable parts of a State to bytes (expression/behavior are recomputed)."""
+    """Serialize the durable parts of a State to a v2 NVM blob."""
     m = state.mood
     return struct.pack(
-        _FORMAT,
+        _FORMAT_V2,
         NVM_VERSION,
         m.energy,
         m.comfort,
@@ -26,22 +35,23 @@ def pack(state):
         state.longest_absence,
         state.first_boot,
         state.total_boops,
+        state.familiarity,
+        state.visit_count,
+        state.artifacts,
     )
 
 
-def unpack(blob):
-    """Deserialize bytes to a State, recomputing expression/behavior.
-
-    Raises ValueError on bad data.
-    """
-    if len(blob) < BLOB_SIZE:
-        raise ValueError("nvm blob too short")
-    fields = struct.unpack(_FORMAT, blob[:BLOB_SIZE])
-    version = fields[0]
-    if version != NVM_VERSION:
-        raise ValueError("nvm version mismatch")
-    mood = Mood(*fields[1:6])
-    last_seen, longest_absence, first_boot, total_boops = fields[6:10]
+def _build(
+    mood,
+    last_seen,
+    longest_absence,
+    first_boot,
+    total_boops,
+    familiarity,
+    visit_count,
+    artifacts,
+):
+    """Construct a State from deserialized fields."""
     return State(
         mood=mood,
         last_seen=last_seen,
@@ -50,7 +60,33 @@ def unpack(blob):
         first_boot=first_boot,
         expression=mood_engine.derive_expression(mood),
         behavior="idle",
+        familiarity=familiarity,
+        visit_count=visit_count,
+        artifacts=artifacts,
     )
+
+
+def unpack(blob):
+    """Deserialize a v2 blob, migrating a v1 blob.
+
+    Raises ValueError on bad data.
+    """
+    if len(blob) < 1:
+        raise ValueError("nvm blob empty")
+    version = blob[0]
+    if version == 2:
+        if len(blob) < _SIZE_V2:
+            raise ValueError("nvm v2 blob too short")
+        f = struct.unpack(_FORMAT_V2, blob[:_SIZE_V2])
+        mood = Mood(*f[1:6])
+        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12])
+    if version == 1:
+        if len(blob) < _SIZE_V1:
+            raise ValueError("nvm v1 blob too short")
+        f = struct.unpack(_FORMAT_V1, blob[:_SIZE_V1])
+        mood = Mood(*f[1:6])
+        return _build(mood, f[6], f[7], f[8], f[9], 0.0, 0, 0)
+    raise ValueError("nvm version unknown")
 
 
 def save(state):
@@ -61,7 +97,7 @@ def save(state):
 
 
 def load(now=0.0):
-    """Read state from NVM; return a fresh default_state on any problem. Device-only."""
+    """Read state from NVM; return default_state on any problem. Device-only."""
     import microcontroller
 
     try:

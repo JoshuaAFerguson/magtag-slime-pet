@@ -59,3 +59,19 @@ def test_production_modules_avoid_namedtuple_replace():
             if "._replace(" in f.read():
                 offenders.append(os.path.relpath(path, root))
     assert not offenders, f"namedtuple._replace breaks CircuitPython; found in: {offenders}"
+
+
+def test_state_has_friendship_and_artifact_fields():
+    s = default_state(now=0.0)
+    assert s.familiarity == 0.0
+    assert s.visit_count == 0
+    assert s.artifacts == 0
+
+
+def test_evolve_updates_new_fields():
+    s = default_state(now=0.0)
+    s2 = evolve(s, familiarity=12.0, visit_count=3, artifacts=5)
+    assert s2.familiarity == 12.0
+    assert s2.visit_count == 3
+    assert s2.artifacts == 5
+    assert s.familiarity == 0.0  # original unchanged

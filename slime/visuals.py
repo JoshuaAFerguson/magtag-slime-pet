@@ -13,6 +13,11 @@ POSE_INDEX = {
     "contemplative": 4,
     "dizzy": 5,
     "resting": 6,
+    "puddle": 7,
+    "loaf": 8,
+    "explorer": 9,
+    "crowned": 10,
+    "wisp": 11,
 }
 
 # Mood-tinted NeoPixel colors (R, G, B), 0..255.
