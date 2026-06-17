@@ -27,3 +27,9 @@ def test_bonded_pool_exists_for_high_tier_personal_quips():
     assert "bonded" in QUIPS
     assert len(QUIPS["bonded"]) >= 2
     assert pick("bonded", choice=lambda seq: seq[0]) == QUIPS["bonded"][0]
+
+
+def test_seasonal_quip_pools_exist():
+    for tag in ("spring", "summer", "autumn", "winter"):
+        assert tag in QUIPS
+        assert len(QUIPS[tag]) >= 2

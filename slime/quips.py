@@ -44,6 +44,26 @@ QUIPS = {
         "you again — good",
         "our quiet is the best quiet",
     ),
+    "spring": (
+        "everything is waking",
+        "green and new",
+        "the air feels young",
+    ),
+    "summer": (
+        "long bright hours",
+        "i want to wander",
+        "warm all the way through",
+    ),
+    "autumn": (
+        "the light goes gold",
+        "i think back often",
+        "a season for quiet",
+    ),
+    "winter": (
+        "cozy and slow",
+        "the cold is gentle",
+        "wrapped up small",
+    ),
 }
 
 
