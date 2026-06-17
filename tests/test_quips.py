@@ -21,3 +21,9 @@ def test_pick_unknown_tag_returns_none():
 def test_pick_is_deterministic_with_injected_choice():
     chosen = pick("greeting", choice=lambda seq: seq[-1])
     assert chosen == QUIPS["greeting"][-1]
+
+
+def test_bonded_pool_exists_for_high_tier_personal_quips():
+    assert "bonded" in QUIPS
+    assert len(QUIPS["bonded"]) >= 2
+    assert pick("bonded", choice=lambda seq: seq[0]) == QUIPS["bonded"][0]

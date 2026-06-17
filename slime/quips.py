@@ -39,6 +39,11 @@ QUIPS = {
         "there you are",
         "hi hi",
     ),
+    "bonded": (
+        "i kept your warmth",
+        "you again — good",
+        "our quiet is the best quiet",
+    ),
 }
 
 
