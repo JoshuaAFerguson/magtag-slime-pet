@@ -6,7 +6,20 @@ Run: python3 assets/make_assets.py
 from PIL import Image, ImageDraw
 
 FRAME = 64
-POSES = ["content", "sleepy", "curious", "happy", "contemplative", "dizzy", "resting"]
+POSES = [
+    "content",
+    "sleepy",
+    "curious",
+    "happy",
+    "contemplative",
+    "dizzy",
+    "resting",
+    "puddle",
+    "loaf",
+    "explorer",
+    "crowned",
+    "wisp",
+]
 BLACK, GRAY, LIGHT, WHITE = 0, 1, 2, 3  # palette indices
 
 
@@ -47,6 +60,43 @@ def draw_pose(d, ox, pose):
         d.ellipse([ox + 28, 44, ox + 38, 52], outline=BLACK, width=2)
     elif pose == "resting":
         _eyes(d, ox, 38, open_=False)
+    elif pose == "puddle":
+        d.rectangle([ox + 8, 44, ox + 56, 56], fill=BLACK)
+        d.rectangle([ox + 10, 46, ox + 54, 54], fill=GRAY)
+        d.rectangle([ox + 24, 49, ox + 28, 51], fill=BLACK)
+        d.rectangle([ox + 36, 49, ox + 40, 51], fill=BLACK)
+    elif pose == "loaf":
+        d.rectangle([ox + 14, 26, ox + 50, 56], fill=BLACK)
+        d.rectangle([ox + 16, 28, ox + 48, 54], fill=GRAY)
+        d.rectangle([ox + 24, 40, ox + 32, 42], fill=BLACK)
+        d.rectangle([ox + 36, 40, ox + 44, 42], fill=BLACK)
+    elif pose == "explorer":
+        _blob(d, ox)
+        d.rectangle([ox + 22, 8, ox + 42, 16], fill=BLACK)
+        d.rectangle([ox + 18, 14, ox + 46, 18], fill=BLACK)
+        _eyes(d, ox, 30, h=12)
+    elif pose == "crowned":
+        _blob(d, ox)
+        d.polygon(
+            [
+                (ox + 22, 14),
+                (ox + 28, 4),
+                (ox + 32, 12),
+                (ox + 38, 2),
+                (ox + 44, 12),
+                (ox + 50, 4),
+                (ox + 44, 14),
+            ],
+            fill=BLACK,
+        )
+        _eyes(d, ox, 32)
+    elif pose == "wisp":
+        d.rectangle([ox + 18, 16, ox + 46, 48], fill=LIGHT)
+        d.rectangle([ox + 20, 18, ox + 44, 46], fill=GRAY)
+        for wx in (ox + 20, ox + 30, ox + 40):
+            d.rectangle([wx, 50, wx + 6, 54], fill=GRAY)
+        d.rectangle([ox + 26, 30, ox + 30, 36], fill=BLACK)
+        d.rectangle([ox + 36, 30, ox + 40, 36], fill=BLACK)
     else:  # content
         _eyes(d, ox, 34)
         d.rectangle([ox + 28, 47, ox + 40, 50], fill=BLACK)
