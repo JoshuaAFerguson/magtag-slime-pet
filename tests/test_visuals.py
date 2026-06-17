@@ -1,12 +1,13 @@
 """Tests for pure presentation & power-mode decisions."""
+
 from slime.state import Mood
 from slime.visuals import (
+    POSE_INDEX,
+    breath_brightness,
+    choose_run_mode,
     expression_to_pose,
     mood_to_rgb,
-    breath_brightness,
     should_refresh,
-    choose_run_mode,
-    POSE_INDEX,
 )
 
 

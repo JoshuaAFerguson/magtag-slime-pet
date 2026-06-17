@@ -1,9 +1,12 @@
 """Pure quip selection. The slime's occasional one-line voice. No hardware imports."""
+
 try:
     from random import choice as _default_choice
 except ImportError:  # pragma: no cover
+
     def _default_choice(seq):
         return seq[0]
+
 
 QUIPS = {
     "content": (

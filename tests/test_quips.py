@@ -1,5 +1,6 @@
 """Tests for the pure quip selection module."""
-from slime.quips import pick, QUIPS
+
+from slime.quips import QUIPS, pick
 
 
 def test_every_expression_and_behavior_tag_has_quips():

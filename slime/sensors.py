@@ -1,13 +1,15 @@
 """Hardware adapter: battery, USB, light, accelerometer. Device-only (imports board/libs)."""
-import board
-import analogio
-import supervisor
+
 import adafruit_lis3dh
+import analogio
+import board
+import supervisor
+
 from slime.interactions import AccelReading
 
 _LIGHT_MAX = 65535.0
-_BATTERY_MIN_V = 3.3   # ~empty LiPo
-_BATTERY_MAX_V = 4.2   # ~full LiPo
+_BATTERY_MIN_V = 3.3  # ~empty LiPo
+_BATTERY_MAX_V = 4.2  # ~full LiPo
 
 # LIS3DH CLICK_SRC register and its single/double click bits.
 _CLICK_SRC = 0x39

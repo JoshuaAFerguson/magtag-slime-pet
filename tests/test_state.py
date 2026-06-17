@@ -1,7 +1,7 @@
 import glob
 import os
 
-from slime.state import Mood, State, clamp, clamp_mood, default_state, evolve, MOOD_FIELDS
+from slime.state import MOOD_FIELDS, Mood, clamp, clamp_mood, default_state, evolve
 
 
 def test_mood_has_five_named_drives():

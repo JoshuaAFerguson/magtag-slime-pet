@@ -1,6 +1,7 @@
 """Tests for the pure mood engine."""
+
+from slime.mood import Inputs, derive_behavior, derive_expression, step
 from slime.state import Mood, default_state
-from slime.mood import Inputs, step, derive_expression, derive_behavior
 
 
 def idle_inputs(**kw):

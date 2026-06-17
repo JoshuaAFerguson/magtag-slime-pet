@@ -1,5 +1,5 @@
+from slime.persistence import BLOB_SIZE, NVM_VERSION, pack, unpack
 from slime.state import Mood, default_state
-from slime.persistence import pack, unpack, NVM_VERSION, BLOB_SIZE
 
 
 def test_pack_roundtrips_state():

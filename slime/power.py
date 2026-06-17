@@ -1,6 +1,8 @@
 """Hardware adapter: deep-sleep and wake sources. Device-only."""
-import alarm
+
 import time
+
+import alarm
 import board
 
 

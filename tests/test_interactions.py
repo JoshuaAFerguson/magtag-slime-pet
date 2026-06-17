@@ -1,6 +1,13 @@
 from slime.interactions import (
-    AccelReading, Detector, new_detector, detect,
-    TAP, DOUBLE_TAP, SHAKE, PICKUP, SETDOWN, FLIP,
+    DOUBLE_TAP,
+    FLIP,
+    PICKUP,
+    SETDOWN,
+    SHAKE,
+    TAP,
+    AccelReading,
+    detect,
+    new_detector,
 )
 
 # On the MagTag, resting screen-up reads z ~ -9.8 (gravity).

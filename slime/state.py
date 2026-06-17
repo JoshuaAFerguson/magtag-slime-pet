@@ -1,4 +1,5 @@
 """Pure value types for the slime's soul. No hardware imports."""
+
 from collections import namedtuple
 
 MOOD_FIELDS = ("energy", "comfort", "curiosity", "sleepiness", "affection")
@@ -7,13 +8,13 @@ Mood = namedtuple("Mood", MOOD_FIELDS)
 State = namedtuple(
     "State",
     (
-        "mood",             # Mood
-        "last_seen",        # float seconds (monotonic-based)
-        "total_boops",      # int
+        "mood",  # Mood
+        "last_seen",  # float seconds (monotonic-based)
+        "total_boops",  # int
         "longest_absence",  # float seconds
-        "first_boot",       # float seconds
-        "expression",       # str
-        "behavior",         # str
+        "first_boot",  # float seconds
+        "expression",  # str
+        "behavior",  # str
     ),
 )
 

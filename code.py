@@ -1,21 +1,22 @@
 """Slime Pet — Local Soul entry point. Runs on the MagTag under CircuitPython."""
+
 import time
-from slime import persistence
-from slime.state import evolve
-from slime.mood import Inputs, step
-from slime.interactions import new_detector, detect
-from slime.quips import pick
-from slime.visuals import should_refresh, choose_run_mode, CONTINUOUS
-from slime.sensors import Sensors
-from slime.pixels import Pixels
+
+from slime import persistence, power
 from slime.display import Display
-from slime import power
+from slime.interactions import detect, new_detector
+from slime.mood import Inputs, step
+from slime.pixels import Pixels
+from slime.quips import pick
+from slime.sensors import Sensors
+from slime.state import evolve
+from slime.visuals import CONTINUOUS, choose_run_mode, should_refresh
 
 # Refresh policy constants.
-_MIN_REFRESH = 180.0       # seconds; protect the panel from flicker
-_SCHEDULED = 21600.0       # seconds (~4x/day) for an unconditional refresh
-_NAP_SECONDS = 1800.0      # battery nap length between wake cycles
-_TICK = 0.05               # breathing frame period (USB loop)
+_MIN_REFRESH = 180.0  # seconds; protect the panel from flicker
+_SCHEDULED = 21600.0  # seconds (~4x/day) for an unconditional refresh
+_NAP_SECONDS = 1800.0  # battery nap length between wake cycles
+_TICK = 0.05  # breathing frame period (USB loop)
 
 
 def _gather(sensors, detector, last_event_time, now):
@@ -25,8 +26,13 @@ def _gather(sensors, detector, last_event_time, now):
     the slime stays calm and present rather than crashing (Rule 1: never dies).
     """
     if sensors is None:
-        inputs = Inputs(light=0.5, battery=1.0, on_usb=True,
-                        seconds_since_interaction=now - last_event_time, events=())
+        inputs = Inputs(
+            light=0.5,
+            battery=1.0,
+            on_usb=True,
+            seconds_since_interaction=now - last_event_time,
+            events=(),
+        )
         return inputs, (), detector, last_event_time
 
     reading = sensors.reading()
@@ -47,10 +53,14 @@ def _maybe_greet_refresh(display, state, prev_expression, events, significant):
     """Render if the refresh policy allows; returns a possibly-updated state. Never raises."""
     if not display:
         return state
-    if should_refresh(time.monotonic(), state.last_seen,
-                      pose_changed=(state.expression != prev_expression),
-                      significant_event=significant,
-                      min_interval=_MIN_REFRESH, scheduled_interval=_SCHEDULED):
+    if should_refresh(
+        time.monotonic(),
+        state.last_seen,
+        pose_changed=(state.expression != prev_expression),
+        significant_event=significant,
+        min_interval=_MIN_REFRESH,
+        scheduled_interval=_SCHEDULED,
+    ):
         quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
         try:
             display.render(state.expression, quip or "")
@@ -110,7 +120,9 @@ def main():
         t0 = time.monotonic()
         while True:
             now = time.monotonic()
-            inputs, events, detector, last_event_time = _gather(sensors, detector, last_event_time, now)
+            inputs, events, detector, last_event_time = _gather(
+                sensors, detector, last_event_time, now
+            )
             if events:
                 prev = state.expression
                 state = step(state, inputs, 1.0)

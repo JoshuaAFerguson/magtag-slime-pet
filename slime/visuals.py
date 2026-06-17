@@ -1,5 +1,7 @@
 """Pure presentation & power-mode decisions. No hardware imports."""
+
 import math
+
 from slime.mood import derive_expression
 
 # Sprite-sheet frame index per expression/behavior. Authored to match assets/slime.bmp.
@@ -15,10 +17,10 @@ POSE_INDEX = {
 
 # Mood-tinted NeoPixel colors (R, G, B), 0..255.
 _EXPRESSION_RGB = {
-    "content": (0, 110, 110),       # calm teal
-    "sleepy": (10, 20, 90),         # dim blue
-    "curious": (150, 90, 0),        # amber
-    "happy": (140, 40, 90),         # rose
+    "content": (0, 110, 110),  # calm teal
+    "sleepy": (10, 20, 90),  # dim blue
+    "curious": (150, 90, 0),  # amber
+    "happy": (140, 40, 90),  # rose
     "contemplative": (40, 30, 90),  # dusk violet
 }
 

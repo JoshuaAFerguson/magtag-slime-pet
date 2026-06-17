@@ -1,25 +1,27 @@
 """Pure mood engine. Inputs -> new State. No hardware imports."""
+
 from collections import namedtuple
+
 from slime.state import Mood, clamp_mood, evolve
 
 Inputs = namedtuple(
     "Inputs",
     (
-        "light",                      # 0.0 (dark) .. 1.0 (bright)
-        "battery",                    # 0.0 .. 1.0
-        "on_usb",                     # bool
+        "light",  # 0.0 (dark) .. 1.0 (bright)
+        "battery",  # 0.0 .. 1.0
+        "on_usb",  # bool
         "seconds_since_interaction",  # float
-        "events",                     # tuple[str, ...]
+        "events",  # tuple[str, ...]
     ),
 )
 
 # Tuning constants (per-minute influence rates, scaled by dt).
-_DAY_LIGHT = 0.35          # light level above which it's "daytime"
-_SLEEP_GAIN = 8.0          # sleepiness change per minute in full dark/light
-_ENERGY_DRAIN = 6.0        # energy lost per minute at empty battery
-_COMFORT_BASELINE = 65.0   # comfort drifts toward this when alone
-_DRIFT = 3.0               # generic drift per minute toward baseline
-_LONELY_AFTER = 3600.0     # seconds alone before curiosity starts to fade
+_DAY_LIGHT = 0.35  # light level above which it's "daytime"
+_SLEEP_GAIN = 8.0  # sleepiness change per minute in full dark/light
+_ENERGY_DRAIN = 6.0  # energy lost per minute at empty battery
+_COMFORT_BASELINE = 65.0  # comfort drifts toward this when alone
+_DRIFT = 3.0  # generic drift per minute toward baseline
+_LONELY_AFTER = 3600.0  # seconds alone before curiosity starts to fade
 
 _EVENT_DELTAS = {
     "double_tap": {"affection": 12.0, "curiosity": 8.0, "sleepiness": -6.0},

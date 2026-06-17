@@ -1,9 +1,12 @@
 """Hardware adapter: render the slime pose + optional quip on E-Ink. Device-only."""
+
 import time
+
 import board
 import displayio
 import terminalio
 from adafruit_display_text import label
+
 from slime.visuals import expression_to_pose
 
 _FRAME = 64
@@ -26,8 +29,10 @@ class Display:
         self._tile = displayio.TileGrid(
             self._bitmap,
             pixel_shader=self._bitmap.pixel_shader,
-            width=1, height=1,
-            tile_width=_FRAME, tile_height=_FRAME,
+            width=1,
+            height=1,
+            tile_width=_FRAME,
+            tile_height=_FRAME,
         )
         self._group = displayio.Group(scale=_SCALE)
         self._group.append(self._tile)

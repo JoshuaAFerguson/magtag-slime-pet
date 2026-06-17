@@ -1,5 +1,6 @@
 """Pure day-in-the-life simulator tests. No hardware."""
-from sim.simulator import run_day, Tick
+
+from sim.simulator import Tick, run_day
 
 
 def test_run_day_returns_a_timeline():

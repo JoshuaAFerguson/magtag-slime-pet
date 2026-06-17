@@ -1,8 +1,10 @@
 """Hardware adapter: NeoPixel breathing. Device-only. Uses pure slime.visuals for the math."""
+
 import board
 import digitalio
 import neopixel
-from slime.visuals import mood_to_rgb, breath_brightness
+
+from slime.visuals import breath_brightness, mood_to_rgb
 
 _NUM = 4
 

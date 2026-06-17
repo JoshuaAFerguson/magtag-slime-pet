@@ -1,4 +1,8 @@
-"""Generate assets/slime.bmp: a 7-frame 64x64 indexed sprite sheet. Run: python3 assets/make_assets.py"""
+"""Generate assets/slime.bmp: a 7-frame 64x64 indexed sprite sheet.
+
+Run: python3 assets/make_assets.py
+"""
+
 from PIL import Image, ImageDraw
 
 FRAME = 64

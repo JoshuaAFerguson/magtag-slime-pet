@@ -1,4 +1,5 @@
 """Pure gesture detection from accelerometer readings. No hardware imports."""
+
 import math
 from collections import namedtuple
 
@@ -14,10 +15,10 @@ AccelReading = namedtuple("AccelReading", ("x", "y", "z", "tapped", "double_tapp
 Detector = namedtuple("Detector", ("was_moving", "still_count"))
 
 _GRAVITY = 9.8
-_SHAKE_MAGNITUDE = 16.0   # m/s^2 total; brisk shake clears this
-_MOVE_DELTA = 1.5         # deviation from 1g that counts as "moving"
-_FLIP_Z = 6.0             # MagTag rests screen-up at z~-9.8; z this POSITIVE = screen-down/flipped
-_STILL_FOR_SETDOWN = 1    # consecutive still reads after motion => setdown
+_SHAKE_MAGNITUDE = 16.0  # m/s^2 total; brisk shake clears this
+_MOVE_DELTA = 1.5  # deviation from 1g that counts as "moving"
+_FLIP_Z = 6.0  # MagTag rests screen-up at z~-9.8; z this POSITIVE = screen-down/flipped
+_STILL_FOR_SETDOWN = 1  # consecutive still reads after motion => setdown
 
 
 def new_detector():
