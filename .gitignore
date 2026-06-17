@@ -1,0 +1,14 @@
+# Visual companion (brainstorming) working files
+.superpowers/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
