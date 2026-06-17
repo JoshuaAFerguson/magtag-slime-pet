@@ -1,6 +1,6 @@
 """Pure mood engine. Inputs -> new State. No hardware imports."""
 from collections import namedtuple
-from slime.state import Mood, clamp_mood
+from slime.state import Mood, clamp_mood, evolve
 
 Inputs = namedtuple(
     "Inputs",
@@ -76,7 +76,8 @@ def step(state, inputs, dt):
             affection=values["affection"],
         )
     )
-    return state._replace(
+    return evolve(
+        state,
         mood=mood,
         expression=derive_expression(mood),
         behavior=derive_behavior(mood, inputs.events),

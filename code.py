@@ -1,6 +1,7 @@
 """Slime Pet — Local Soul entry point. Runs on the MagTag under CircuitPython."""
 import time
 from slime import persistence
+from slime.state import evolve
 from slime.mood import Inputs, step
 from slime.interactions import new_detector, detect
 from slime.quips import pick
@@ -53,7 +54,7 @@ def _maybe_greet_refresh(display, state, prev_expression, events, significant):
         quip = pick(state.behavior if state.behavior == "greeting" else state.expression)
         try:
             display.render(state.expression, quip or "")
-            state = state._replace(last_seen=time.monotonic())
+            state = evolve(state, last_seen=time.monotonic())
         except Exception:
             pass  # never let a render failure kill the creature
     return state
@@ -87,7 +88,7 @@ def main():
     prev_expression = state.expression
     state = step(state, inputs, 1.0)
     if "double_tap" in events:
-        state = state._replace(total_boops=state.total_boops + 1)
+        state = evolve(state, total_boops=state.total_boops + 1)
     state = _maybe_greet_refresh(display, state, prev_expression, events, bool(events))
 
     persistence.save(state)
@@ -102,7 +103,7 @@ def main():
                 prev = state.expression
                 state = step(state, inputs, 1.0)
                 if "double_tap" in events:
-                    state = state._replace(total_boops=state.total_boops + 1)
+                    state = evolve(state, total_boops=state.total_boops + 1)
                 if state.behavior == "dizzy" and pixels:
                     pixels.flash((120, 0, 0))
                     time.sleep(0.4)

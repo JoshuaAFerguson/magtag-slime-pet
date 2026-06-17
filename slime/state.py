@@ -39,3 +39,20 @@ def default_state(now=0.0):
         expression="content",
         behavior="idle",
     )
+
+
+def evolve(state, **changes):
+    """Return a new State with the given fields changed.
+
+    CircuitPython's namedtuple does not implement `_replace`, so we reconstruct
+    explicitly. Works identically on desktop CPython and on-device.
+    """
+    return State(
+        mood=changes.get("mood", state.mood),
+        last_seen=changes.get("last_seen", state.last_seen),
+        total_boops=changes.get("total_boops", state.total_boops),
+        longest_absence=changes.get("longest_absence", state.longest_absence),
+        first_boot=changes.get("first_boot", state.first_boot),
+        expression=changes.get("expression", state.expression),
+        behavior=changes.get("behavior", state.behavior),
+    )
