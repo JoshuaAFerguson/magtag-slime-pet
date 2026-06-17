@@ -55,7 +55,6 @@ and unit-testable.
 
 ```
 code.py                  # entry: boot, run loop (USB) or wake-cycle (battery)
-boot.py                  # remount filesystem writable when untethered (future-proofing persistence)
 slime/
   state.py               # the creature's state; immutable updates → new state
   mood.py                # PURE: inputs → mood vector → expression + behavior
