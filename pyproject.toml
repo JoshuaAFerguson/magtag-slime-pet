@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+# -p no:debugging stops pytest importing pdb -> stdlib `code`, which the device
+# entry file code.py shadows once the repo root is on pythonpath.
+addopts = "-q -p no:debugging"
+
+[tool.coverage.run]
+source = ["slime", "sim"]
+omit = ["slime/sensors.py", "slime/pixels.py", "slime/display.py", "slime/power.py", "code.py"]
