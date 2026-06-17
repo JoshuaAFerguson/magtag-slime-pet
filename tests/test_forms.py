@@ -33,3 +33,18 @@ def test_long_quiet_low_drive_renders_wisp():
 def test_default_falls_back_to_expression_face():
     calm = Mood(60, 80, 50, 30, 40)  # derive_expression -> content
     assert choose_render(calm, tier=4, sleeping=False) == POSE_INDEX["content"]
+
+
+def test_calm_mood_shows_seasonal_form_when_season_given():
+    calm = Mood(60, 80, 50, 30, 40)  # derive_expression -> content
+    assert choose_render(calm, tier=4, sleeping=False, season="winter") == POSE_INDEX["winter_form"]
+
+
+def test_no_season_keeps_content_face():
+    calm = Mood(60, 80, 50, 30, 40)
+    assert choose_render(calm, tier=4, sleeping=False) == POSE_INDEX["content"]
+
+
+def test_mood_form_still_wins_over_season():
+    sleepy = Mood(50, 60, 40, 90, 40)
+    assert choose_render(sleepy, tier=4, sleeping=True, season="winter") == POSE_INDEX["loaf"]
