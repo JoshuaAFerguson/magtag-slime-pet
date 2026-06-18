@@ -1,0 +1,69 @@
+"""Tests for pure oracle parsing, behavioral effects, and NVM caching."""
+
+from slime.oracle import (
+    dream_refs,
+    form_override,
+    mood_bias,
+    pack,
+    parse,
+    quip_tag,
+    unpack,
+)
+from slime.state import Mood
+
+
+def _payload(tags, phase=4, illum=0.98, sunset=False, temp=43.0):
+    return {
+        "weather": {"tags": tags, "temp_c": temp, "sunset_soon": sunset},
+        "moon": {"phase": phase, "illum": illum},
+    }
+
+
+def test_parse_picks_dominant_tag_by_priority():
+    o = parse(_payload(["clear", "storm_incoming"]))
+    assert o.weather_tag == "storm_incoming"
+
+
+def test_parse_handles_missing_payload():
+    assert parse(None) is None
+    assert parse({}) is not None
+
+
+def test_form_override():
+    assert form_override(parse(_payload(["extreme_heat"]))) == "melting"
+    assert form_override(parse(_payload(["storm_incoming"]))) == "hiding"
+    assert form_override(parse(_payload(["clear"]))) is None
+
+
+def test_quip_tag():
+    assert quip_tag(parse(_payload(["rain"]))) == "rain"
+    assert quip_tag(parse(_payload(["clear"], phase=4))) == "full_moon"
+    assert quip_tag(parse(_payload(["clear"], phase=0))) == "new_moon"
+    assert quip_tag(parse(_payload(["clear"], phase=2))) is None
+
+
+def test_mood_bias_extreme_heat_drains_energy():
+    o = parse(_payload(["extreme_heat"]))
+    biased = mood_bias(Mood(80, 60, 50, 30, 40), o)
+    assert biased.energy < 80
+
+
+def test_dream_refs_full_moon():
+    refs = dream_refs(parse(_payload(["clear"], phase=4)))
+    assert any("moon" in r for r in refs)
+
+
+def test_cache_roundtrip():
+    o = parse(
+        _payload(
+            ["storm_incoming"],
+            phase=4,
+            illum=0.98,
+            sunset=True,
+            temp=30.0,
+        )
+    )
+    o2 = unpack(pack(o))
+    assert o2.weather_tag == "storm_incoming"
+    assert o2.moon_phase == 4
+    assert o2.sunset_soon is True
