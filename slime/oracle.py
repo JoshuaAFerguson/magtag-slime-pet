@@ -7,7 +7,15 @@ from slime.state import MOOD_FIELDS, Mood, clamp_mood
 
 Oracle = namedtuple(
     "Oracle",
-    ("weather_tag", "temp_c", "moon_phase", "moon_illum", "sunset_soon"),
+    (
+        "weather_tag",
+        "temp_c",
+        "moon_phase",
+        "moon_illum",
+        "sunset_soon",
+        "coding_rhythm",
+        "hours_since_push",
+    ),
 )
 
 _TAG_PRIORITY = ("storm_incoming", "extreme_heat", "rain", "monsoon", "cold", "clear")
@@ -27,6 +35,13 @@ _QUIP = {
     "monsoon": "storm",
 }
 
+_RHYTHM_IDS = ("idle", "light", "heavy")
+_RHYTHM_TARGETS = {
+    "heavy": {"comfort": 78.0, "affection": 60.0, "energy": 62.0},
+    "light": {"comfort": 72.0},
+}
+_QUIET_GAP_HOURS = 36.0
+
 
 def parse(payload):
     """Map an /oracle dict to an Oracle, or None if there's nothing usable."""
@@ -34,6 +49,7 @@ def parse(payload):
         return None
     w = payload.get("weather", {})
     m = payload.get("moon", {})
+    p = payload.get("presence", {})
     tags = w.get("tags", []) or []
     tag = "clear"
     for candidate in _TAG_PRIORITY:
@@ -46,6 +62,8 @@ def parse(payload):
         moon_phase=m.get("phase", 0),
         moon_illum=m.get("illum", 0.0),
         sunset_soon=bool(w.get("sunset_soon", False)),
+        coding_rhythm=p.get("coding_rhythm", "idle"),
+        hours_since_push=p.get("hours_since_push"),
     )
 
 
@@ -63,6 +81,11 @@ def mood_bias(mood, oracle, rate=0.05):
         vals["affection"] += (70.0 - vals["affection"]) * rate
     if oracle.moon_phase == 4:
         vals["curiosity"] += (65.0 - vals["curiosity"]) * rate
+    for drive, target in _RHYTHM_TARGETS.get(oracle.coding_rhythm, {}).items():
+        vals[drive] += (target - vals[drive]) * rate
+    if oracle.hours_since_push is not None and oracle.hours_since_push >= _QUIET_GAP_HOURS:
+        vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
+        vals["affection"] += (65.0 - vals["affection"]) * rate
     return clamp_mood(Mood(**vals))
 
 
@@ -85,6 +108,10 @@ def quip_tag(oracle):
         return "full_moon"
     if oracle.moon_phase == 0:
         return "new_moon"
+    if oracle.coding_rhythm in ("heavy", "light"):
+        return "busy"
+    if oracle.hours_since_push is not None and oracle.hours_since_push >= _QUIET_GAP_HOURS:
+        return "quiet"
     return None
 
 
@@ -104,7 +131,12 @@ def dream_refs(oracle):
     return tuple(refs)
 
 
-_FMT = "<BBBff"  # tag_id, moon_phase, sunset, temp_c, moon_illum
+def is_busy(oracle):
+    """True when there's notable recent coding activity (drives the journal 'busy' flag)."""
+    return oracle is not None and oracle.coding_rhythm in ("heavy", "light")
+
+
+_FMT = "<BBBffBf"  # tag_id, moon_phase, sunset, temp_c, moon_illum, rhythm_id, hours_since_push
 SIZE = struct.calcsize(_FMT)
 
 
@@ -112,6 +144,10 @@ def pack(oracle):
     """Pack an Oracle into binary form for NVM storage."""
     tag_id = _TAG_IDS.index(oracle.weather_tag) if oracle.weather_tag in _TAG_IDS else 0
     temp = oracle.temp_c if oracle.temp_c is not None else -999.0
+    rhythm_id = (
+        _RHYTHM_IDS.index(oracle.coding_rhythm) if oracle.coding_rhythm in _RHYTHM_IDS else 0
+    )
+    hours = oracle.hours_since_push if oracle.hours_since_push is not None else -1.0
     return struct.pack(
         _FMT,
         tag_id,
@@ -119,18 +155,22 @@ def pack(oracle):
         1 if oracle.sunset_soon else 0,
         temp,
         oracle.moon_illum,
+        rhythm_id,
+        hours,
     )
 
 
 def unpack(blob):
     """Unpack binary form back into an Oracle."""
-    tag_id, phase, sunset, temp, illum = struct.unpack(_FMT, blob[:SIZE])
+    tag_id, phase, sunset, temp, illum, rhythm_id, hours = struct.unpack(_FMT, blob[:SIZE])
     return Oracle(
         weather_tag=_TAG_IDS[tag_id] if tag_id < len(_TAG_IDS) else "clear",
         temp_c=None if temp < -900.0 else temp,
         moon_phase=phase,
         moon_illum=illum,
         sunset_soon=bool(sunset),
+        coding_rhythm=_RHYTHM_IDS[rhythm_id] if rhythm_id < len(_RHYTHM_IDS) else "idle",
+        hours_since_push=None if hours < 0.0 else hours,
     )
 
 
