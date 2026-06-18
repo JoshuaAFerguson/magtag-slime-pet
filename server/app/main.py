@@ -1,12 +1,12 @@
 """FastAPI home oracle: GET /oracle (weather + moon), GET /health."""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
 
-from . import config, moon, oracle, weather
+from . import config, github, moon, oracle, weather
 
 app = FastAPI(title="Slime Oracle")
 
@@ -30,6 +30,18 @@ def health() -> dict:
     return {"ok": True}
 
 
+def _presence():
+    """Derive the GitHub presence signal; idle on missing token or any failure."""
+    if not config.GITHUB_USER:
+        return {"coding_rhythm": "idle", "hours_since_push": None}
+    try:
+        with httpx.Client(timeout=10) as client:
+            events = github.fetch_events(client)
+        return github.summarize(events, datetime.now(timezone.utc))
+    except Exception:
+        return {"coding_rhythm": "idle", "hours_since_push": None}
+
+
 @app.get("/oracle")
 def get_oracle(authorization: str = Header(default="")) -> dict:
     """Fetch weather + moon oracle for the configured location.
@@ -46,4 +58,4 @@ def get_oracle(authorization: str = Header(default="")) -> dict:
         w = weather.normalize(raw, now_iso=now.isoformat(timespec="minutes"))
     except Exception:
         w = {"tags": [], "temp_c": None, "code": 0, "sunset_soon": False}
-    return oracle.build(w, mooninfo, ts=int(time.time()))
+    return oracle.build(w, mooninfo, _presence(), ts=int(time.time()))

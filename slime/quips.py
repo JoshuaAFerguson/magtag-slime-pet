@@ -94,6 +94,16 @@ QUIPS = {
         "the moon is hiding too",
         "quiet under no moon",
     ),
+    "busy": (
+        "you've been deep in work",
+        "i watched the clouds while you worked",
+        "good work today",
+    ),
+    "quiet": (
+        "it's quiet without you",
+        "where did you wander?",
+        "i kept your seat warm",
+    ),
 }
 
 

@@ -3,6 +3,7 @@
 from slime.oracle import (
     dream_refs,
     form_override,
+    is_busy,
     mood_bias,
     pack,
     parse,
@@ -16,6 +17,14 @@ def _payload(tags, phase=4, illum=0.98, sunset=False, temp=43.0):
     return {
         "weather": {"tags": tags, "temp_c": temp, "sunset_soon": sunset},
         "moon": {"phase": phase, "illum": illum},
+    }
+
+
+def _with_presence(rhythm, hours):
+    return {
+        "weather": {"tags": ["clear"], "temp_c": 25.0, "sunset_soon": False},
+        "moon": {"phase": 2, "illum": 0.5},
+        "presence": {"coding_rhythm": rhythm, "hours_since_push": hours},
     }
 
 
@@ -67,3 +76,41 @@ def test_cache_roundtrip():
     assert o2.weather_tag == "storm_incoming"
     assert o2.moon_phase == 4
     assert o2.sunset_soon is True
+
+
+def test_parse_reads_presence():
+    o = parse(_with_presence("heavy", 1.5))
+    assert o.coding_rhythm == "heavy"
+    assert o.hours_since_push == 1.5
+
+
+def test_parse_defaults_presence_idle_when_absent():
+    o = parse(_payload(["clear"]))
+    assert o.coding_rhythm == "idle"
+    assert o.hours_since_push is None
+
+
+def test_heavy_rhythm_makes_it_content_alone():
+    o = parse(_with_presence("heavy", 1.0))
+    biased = mood_bias(Mood(60, 50, 50, 30, 40), o)
+    assert biased.comfort > 50
+
+
+def test_long_quiet_gap_makes_it_attentive():
+    o = parse(_with_presence("idle", 100.0))
+    biased = mood_bias(Mood(60, 60, 40, 30, 40), o)
+    assert biased.curiosity > 40
+
+
+def test_busy_quip_tag():
+    o = parse(_with_presence("heavy", 1.0))
+    assert quip_tag(o) == "busy"
+    assert is_busy(o) is True
+    assert is_busy(parse(_with_presence("idle", 1.0))) is False
+
+
+def test_cache_roundtrip_preserves_presence():
+    o = parse(_with_presence("light", 4.5))
+    o2 = unpack(pack(o))
+    assert o2.coding_rhythm == "light"
+    assert abs(o2.hours_since_push - 4.5) < 0.01

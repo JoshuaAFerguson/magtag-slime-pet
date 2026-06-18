@@ -46,3 +46,9 @@ def test_entry_season_word_matches_seasons_encoding():
     winter = (100, 0, accent_frame("winter"), 0, 0)
     assert "long warm hours" in generate_entry(summer, 1, lambda s: s[0])
     assert "still cold air" in generate_entry(winter, 1, lambda s: s[0])
+
+
+def test_busy_flag_changes_the_entry_closing():
+    busy = (100, 0, 0, 0b10, 0)  # flags bit1 = busy day
+    line = generate_entry(busy, day_number=5, choice=lambda s: s[0])
+    assert "you seemed busy" in line
