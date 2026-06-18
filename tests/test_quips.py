@@ -33,3 +33,9 @@ def test_seasonal_quip_pools_exist():
     for tag in ("spring", "summer", "autumn", "winter"):
         assert tag in QUIPS
         assert len(QUIPS[tag]) >= 2
+
+
+def test_weather_moon_quip_pools_exist():
+    for tag in ("heat", "rain", "storm", "sunset", "full_moon", "new_moon"):
+        assert tag in QUIPS
+        assert len(QUIPS[tag]) >= 2

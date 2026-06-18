@@ -64,6 +64,36 @@ QUIPS = {
         "the cold is gentle",
         "wrapped up small",
     ),
+    "heat": (
+        "the air shimmers",
+        "i am melting, slowly",
+        "too warm to move",
+    ),
+    "rain": (
+        "i smell the rain",
+        "everything drinks",
+        "petrichor",
+    ),
+    "storm": (
+        "something is coming",
+        "i will hide a while",
+        "the sky feels heavy",
+    ),
+    "sunset": (
+        "look at that light",
+        "the day bows out",
+        "gold on everything",
+    ),
+    "full_moon": (
+        "the moon is full tonight",
+        "bright even with eyes closed",
+        "a night for wandering dreams",
+    ),
+    "new_moon": (
+        "the sky is deep and dark",
+        "the moon is hiding too",
+        "quiet under no moon",
+    ),
 }
 
 
