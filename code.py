@@ -150,7 +150,7 @@ def _dream_on_wake(display, sound, state, oracle=None):
     return evolve(state, artifacts=artifacts, last_seen=time.monotonic())
 
 
-def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring, events):
+def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring, events, oracle):
     """On a new wall-clock day, append a journal record and show it. Returns (state, ring)."""
     if not season:  # no trustworthy date this power-cycle -> never fabricate one
         return state, ring
@@ -163,7 +163,7 @@ def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring,
         ordinal,
         _MOOD_BYTE.get(state.expression, 0),
         seasons.accent_frame(season),
-        0b1 if "double_tap" in events else 0,
+        (0b1 if "double_tap" in events else 0) | (0b10 if oracle_mod.is_busy(oracle) else 0),
         friendship.tier(state.familiarity),
     )
     ring = journal.append(ring, record)
@@ -225,7 +225,7 @@ def main():
     state = evolve(state, familiarity=fam, visit_count=visits)
 
     state, ring = _maybe_journal(
-        display, state, season, synced_epoch, mono_at_sync, tz, ring, events
+        display, state, season, synced_epoch, mono_at_sync, tz, ring, events, oracle
     )
 
     state = _render_frame(display, state, season, weather_form, oracle)
