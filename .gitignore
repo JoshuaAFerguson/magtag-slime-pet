@@ -13,5 +13,8 @@ htmlcov/
 # Device secrets (WiFi creds) — never commit
 settings.toml
 
+# Server secrets (GitHub PAT etc.) — never commit
+.env
+
 # OS
 .DS_Store

@@ -11,3 +11,7 @@ services:
       SLIME_LON: "-112.0740"
       SLIME_TZ: "America/Phoenix"
       # ORACLE_TOKEN: "set-a-shared-token-to-require-auth"
+      # GitHub presence: put GITHUB_USER / GITHUB_TOKEN in a gitignored server/.env
+      # (compose auto-loads it for these interpolations). Empty -> presence stays "idle".
+      GITHUB_USER: "${GITHUB_USER:-}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
