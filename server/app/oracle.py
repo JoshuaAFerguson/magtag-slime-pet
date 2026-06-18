@@ -1,6 +1,6 @@
-"""Assemble the /oracle payload from weather + moon."""
+"""Assemble the /oracle payload from weather + moon + presence."""
 
 
-def build(weather, moon, ts):
+def build(weather, moon, presence, ts):
     """Return the compact oracle payload served to the device."""
-    return {"weather": weather, "moon": moon, "ts": ts}
+    return {"weather": weather, "moon": moon, "presence": presence, "ts": ts}

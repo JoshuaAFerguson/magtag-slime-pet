@@ -56,3 +56,21 @@ def test_oracle_requires_token_when_configured(monkeypatch):
     c = _client(monkeypatch)
     assert c.get("/oracle").status_code == 401
     assert c.get("/oracle", headers={"Authorization": "Bearer sekret"}).status_code == 200
+
+
+def test_oracle_includes_presence_when_github_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "GITHUB_USER", "octocat")
+    monkeypatch.setattr(
+        main_mod.github,
+        "fetch_events",
+        lambda client: [
+            {"type": "PushEvent", "created_at": "2026-06-18T14:30:00Z", "payload": {"size": 12}}
+        ],
+    )
+    body = _client(monkeypatch).get("/oracle").json()
+    assert body["presence"]["coding_rhythm"] == "heavy"
+
+
+def test_oracle_presence_idle_without_token(monkeypatch):
+    body = _client(monkeypatch).get("/oracle").json()
+    assert body["presence"]["coding_rhythm"] == "idle"
