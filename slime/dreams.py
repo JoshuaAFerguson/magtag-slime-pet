@@ -39,12 +39,14 @@ def should_dream(slept, sleep_seconds):
     return bool(slept) and sleep_seconds >= _MIN_SLEEP
 
 
-def generate(tier, artifacts_mask, choice):
+def generate(tier, artifacts_mask, choice, extra_refs=()):
     """Assemble one dream line and maybe an artifact id.
     `choice(seq)` picks from a sequence."""
     line = choice(_ACTS) + " " + choice(_PLACES) + "."
     if tier >= 2:
         line += " " + choice(_PERSONAL) + "."
+    if extra_refs:
+        line += " " + choice(tuple(extra_refs)) + "."
 
     artifact_id = None
     # ~1-in-4 chance to find something, decided via injected choice.

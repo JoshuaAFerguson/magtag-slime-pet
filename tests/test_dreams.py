@@ -43,3 +43,10 @@ def test_artifact_bitmask_helpers():
     assert has_artifact(mask, 2) is True
     assert has_artifact(mask, 1) is False
     assert artifact_name(2) == ARTIFACTS[2]
+
+
+def test_generate_weaves_extra_ref_when_provided():
+    line, _ = generate(
+        tier=0, artifacts_mask=0, choice=lambda s: s[0], extra_refs=("beneath the full moon",)
+    )
+    assert "beneath the full moon" in line
