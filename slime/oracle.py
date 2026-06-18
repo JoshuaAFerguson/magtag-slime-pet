@@ -1,0 +1,158 @@
+"""Pure oracle parsing + behavioral effects + NVM cache. Device save/load import lazily."""
+
+import struct
+from collections import namedtuple
+
+from slime.state import MOOD_FIELDS, Mood, clamp_mood
+
+Oracle = namedtuple(
+    "Oracle",
+    ("weather_tag", "temp_c", "moon_phase", "moon_illum", "sunset_soon"),
+)
+
+_TAG_PRIORITY = ("storm_incoming", "extreme_heat", "rain", "monsoon", "cold", "clear")
+_TAG_IDS = ("clear", "storm_incoming", "extreme_heat", "rain", "monsoon", "cold")
+
+_WEATHER_TARGETS = {
+    "storm_incoming": {"comfort": 80.0, "sleepiness": 55.0},
+    "extreme_heat": {"energy": 20.0},
+    "rain": {"curiosity": 75.0, "energy": 65.0},
+    "cold": {"comfort": 70.0},
+}
+_FORM = {"extreme_heat": "melting", "storm_incoming": "hiding"}
+_QUIP = {
+    "extreme_heat": "heat",
+    "rain": "rain",
+    "storm_incoming": "storm",
+    "monsoon": "storm",
+}
+
+
+def parse(payload):
+    """Map an /oracle dict to an Oracle, or None if there's nothing usable."""
+    if payload is None:
+        return None
+    w = payload.get("weather", {})
+    m = payload.get("moon", {})
+    tags = w.get("tags", []) or []
+    tag = "clear"
+    for candidate in _TAG_PRIORITY:
+        if candidate in tags:
+            tag = candidate
+            break
+    return Oracle(
+        weather_tag=tag,
+        temp_c=w.get("temp_c"),
+        moon_phase=m.get("phase", 0),
+        moon_illum=m.get("illum", 0.0),
+        sunset_soon=bool(w.get("sunset_soon", False)),
+    )
+
+
+def mood_bias(mood, oracle, rate=0.05):
+    """Nudge mood toward the weather's tendency + a small full-moon dreaminess.
+
+    Returns a new Mood with adjusted drives.
+    """
+    if oracle is None:
+        return mood
+    vals = {field: getattr(mood, field) for field in MOOD_FIELDS}
+    for drive, target in _WEATHER_TARGETS.get(oracle.weather_tag, {}).items():
+        vals[drive] += (target - vals[drive]) * rate
+    if oracle.sunset_soon:
+        vals["affection"] += (70.0 - vals["affection"]) * rate
+    if oracle.moon_phase == 4:
+        vals["curiosity"] += (65.0 - vals["curiosity"]) * rate
+    return clamp_mood(Mood(**vals))
+
+
+def form_override(oracle):
+    """Weather form name (melting/hiding) or None."""
+    if oracle is None:
+        return None
+    return _FORM.get(oracle.weather_tag)
+
+
+def quip_tag(oracle):
+    """Weather/moon quip pool tag, or None."""
+    if oracle is None:
+        return None
+    if oracle.weather_tag in _QUIP:
+        return _QUIP[oracle.weather_tag]
+    if oracle.sunset_soon:
+        return "sunset"
+    if oracle.moon_phase == 4:
+        return "full_moon"
+    if oracle.moon_phase == 0:
+        return "new_moon"
+    return None
+
+
+def dream_refs(oracle):
+    """Lore fragments to weave into dreams from weather/moon."""
+    if oracle is None:
+        return ()
+    refs = []
+    if oracle.moon_phase == 4:
+        refs.append("beneath the full moon")
+    elif oracle.moon_phase == 0:
+        refs.append("under a dark new-moon sky")
+    if oracle.weather_tag == "extreme_heat":
+        refs.append("the desert stayed warm")
+    elif oracle.weather_tag in ("rain", "storm_incoming", "monsoon"):
+        refs.append("rain was coming")
+    return tuple(refs)
+
+
+_FMT = "<BBBff"  # tag_id, moon_phase, sunset, temp_c, moon_illum
+SIZE = struct.calcsize(_FMT)
+
+
+def pack(oracle):
+    """Pack an Oracle into binary form for NVM storage."""
+    tag_id = _TAG_IDS.index(oracle.weather_tag) if oracle.weather_tag in _TAG_IDS else 0
+    temp = oracle.temp_c if oracle.temp_c is not None else -999.0
+    return struct.pack(
+        _FMT,
+        tag_id,
+        oracle.moon_phase,
+        1 if oracle.sunset_soon else 0,
+        temp,
+        oracle.moon_illum,
+    )
+
+
+def unpack(blob):
+    """Unpack binary form back into an Oracle."""
+    tag_id, phase, sunset, temp, illum = struct.unpack(_FMT, blob[:SIZE])
+    return Oracle(
+        weather_tag=_TAG_IDS[tag_id] if tag_id < len(_TAG_IDS) else "clear",
+        temp_c=None if temp < -900.0 else temp,
+        moon_phase=phase,
+        moon_illum=illum,
+        sunset_soon=bool(sunset),
+    )
+
+
+_NVM_OFFSET = 512  # fixed slot safely past the state blob and the journal ring
+
+
+def save_cache(oracle):
+    """Persist the oracle to its NVM slot. Device-only."""
+    import microcontroller
+
+    microcontroller.nvm[_NVM_OFFSET : _NVM_OFFSET + SIZE] = pack(oracle)
+
+
+def load_cache():
+    """Read the cached oracle from NVM, or None if absent/invalid. Device-only."""
+    import microcontroller
+
+    try:
+        blob = bytes(microcontroller.nvm[_NVM_OFFSET : _NVM_OFFSET + SIZE])
+        o = unpack(blob)
+        if o.moon_phase > 7:
+            return None
+        return o
+    except Exception:
+        return None

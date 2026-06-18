@@ -6,19 +6,21 @@ from slime import (
     dreams,
     friendship,
     journal,
+    netoracle,
     nettime,
     persistence,
     power,
     seasons,
     timekeeping,
 )
+from slime import oracle as oracle_mod
 from slime.forms import choose_render
 from slime.interactions import detect, new_detector
 from slime.mood import Inputs, step
 from slime.motifs import pick_motif
 from slime.quips import pick
 from slime.state import evolve
-from slime.visuals import CONTINUOUS, choose_run_mode, should_refresh
+from slime.visuals import ACCENT_MOON, CONTINUOUS, choose_run_mode, should_refresh
 
 # Refresh / timing constants.
 _MIN_REFRESH = 180.0
@@ -86,16 +88,33 @@ def _current_season(synced_epoch, mono_at_sync, tz):
     return seasons.season_of(month)
 
 
-def _render_frame(display, state, season=None):
-    """Render the current form (+ seasonal accent) and a quip. Returns updated state."""
+def _load_oracle(on_usb):
+    """Fetch the oracle on USB (and cache it); otherwise use the cached one. Returns Oracle|None."""
+    if on_usb:
+        payload = netoracle.fetch()
+        parsed = oracle_mod.parse(payload)
+        if parsed is not None:
+            oracle_mod.save_cache(parsed)
+            return parsed
+    return oracle_mod.load_cache()
+
+
+def _render_frame(display, state, season=None, weather=None, oracle=None):
+    """Render the current form (+ seasonal/moon accent) and a quip. Returns updated state."""
     if not display:
         return state
     sleeping = state.mood.sleepiness >= _SLEEPY_FRAME
     ftier = friendship.tier(state.familiarity)
-    frame = choose_render(state.mood, ftier, sleeping, season=season)
-    tag = "bonded" if ftier >= 3 else state.expression
+    frame = choose_render(state.mood, ftier, sleeping, season=season, weather=weather)
+    # Quip: weather/moon voice first, then bonded, then expression.
+    otag = oracle_mod.quip_tag(oracle) if oracle is not None else None
+    tag = otag or ("bonded" if ftier >= 3 else state.expression)
     quip = pick(tag) or pick(state.expression)
-    accent = seasons.accent_frame(season) if season else None
+    # Accent: a notable moon takes the corner, else the season.
+    if oracle is not None and oracle.moon_phase in (0, 4):
+        accent = ACCENT_MOON
+    else:
+        accent = seasons.accent_frame(season) if season else None
     try:
         display.render_frame(frame, quip or "", accent_index=accent)
         state = evolve(state, last_seen=time.monotonic())
@@ -111,10 +130,11 @@ def _choice(seq):
     return random.choice(seq)
 
 
-def _dream_on_wake(display, sound, state):
+def _dream_on_wake(display, sound, state, oracle=None):
     """Generate and show a dream + maybe an artifact. Returns updated state."""
     fam_tier = friendship.tier(state.familiarity)
-    line, artifact_id = dreams.generate(fam_tier, state.artifacts, _choice)
+    refs = oracle_mod.dream_refs(oracle) if oracle is not None else ()
+    line, artifact_id = dreams.generate(fam_tier, state.artifacts, _choice, extra_refs=refs)
     artifact_name = ""
     artifacts = state.artifacts
     if artifact_id is not None and not dreams.has_artifact(artifacts, artifact_id):
@@ -175,18 +195,25 @@ def main():
     last_event_time = time.monotonic()
 
     # Time + season (offline-first): only spend WiFi/power on USB; never fake a date.
+    on_usb_boot = sensors.on_usb() if sensors else True
     synced_epoch, mono_at_sync, tz = (None, None, -7.0)
-    if sensors.on_usb() if sensors else True:
+    if on_usb_boot:
         synced_epoch, mono_at_sync, tz = _sync_time()
     ring = journal.load_ring()
     season = _current_season(synced_epoch, mono_at_sync, tz)
     if season:
         state = evolve(state, mood=seasons.apply_bias(state.mood, season))
 
+    # Oracle (weather + moon): fetch+cache on USB, else use cache. None -> no effect.
+    oracle = _load_oracle(on_usb_boot)
+    if oracle is not None:
+        state = evolve(state, mood=oracle_mod.mood_bias(state.mood, oracle))
+    weather_form = oracle_mod.form_override(oracle)
+
     woke_deep = power.woke_from_deep_sleep()
     # If we woke from a long deep-sleep nap, that was a "night" — dream first.
     if woke_deep and dreams.should_dream(True, _NAP_SECONDS):
-        state = _dream_on_wake(display, sound, state)
+        state = _dream_on_wake(display, sound, state, oracle)
 
     inputs, events, detector, last_event_time, gap = _gather(
         sensors, detector, last_event_time, now
@@ -201,7 +228,7 @@ def main():
         display, state, season, synced_epoch, mono_at_sync, tz, ring, events
     )
 
-    state = _render_frame(display, state, season)
+    state = _render_frame(display, state, season, weather_form, oracle)
     persistence.save(state)
 
     if choose_run_mode(inputs.on_usb, inputs.battery) == CONTINUOUS:
@@ -220,6 +247,8 @@ def main():
                 state = evolve(state, familiarity=fam, visit_count=visits)
                 if season:
                     state = evolve(state, mood=seasons.apply_bias(state.mood, season))
+                if oracle is not None:
+                    state = evolve(state, mood=oracle_mod.mood_bias(state.mood, oracle))
                 ftier = friendship.tier(state.familiarity)
                 # Sound ONLY on a deliberate greeting (double-tap) — never unprompted, so the
                 # slime won't beep from a desk bump or during a meeting. Dizzy stays pixel-only.
@@ -236,7 +265,7 @@ def main():
                     min_interval=_MIN_REFRESH,
                     scheduled_interval=_SCHEDULED,
                 ):
-                    state = _render_frame(display, state, season)
+                    state = _render_frame(display, state, season, weather_form, oracle)
                 persistence.save(state)
             if pixels:
                 rate = 0.12 + (state.mood.energy / 100.0) * 0.35

@@ -6,12 +6,16 @@ from slime.seasons import form_frame
 from slime.visuals import POSE_INDEX
 
 
-def choose_render(mood, tier, sleeping, season=None):
+def choose_render(mood, tier, sleeping, season=None, weather=None):
     """Return the sprite frame index to display, in priority order."""
     forms_ok = unlocked_forms(tier)
 
     if sleeping or mood.sleepiness >= 85.0:
         return POSE_INDEX["loaf"]
+    if weather == "melting":
+        return POSE_INDEX["melting"]
+    if weather == "hiding":
+        return POSE_INDEX["hiding"]
     if mood.energy <= 15.0:
         return POSE_INDEX["puddle"]
     if "explorer" in forms_ok and mood.curiosity >= 70.0 and mood.energy >= 60.0:

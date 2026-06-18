@@ -2,6 +2,7 @@
 
 from slime.state import Mood
 from slime.visuals import (
+    ACCENT_MOON,
     POSE_INDEX,
     breath_brightness,
     choose_run_mode,
@@ -97,3 +98,9 @@ def test_should_refresh_scheduled_update_when_stale():
 def test_choose_run_mode():
     assert choose_run_mode(on_usb=True, battery=0.9) == "continuous"
     assert choose_run_mode(on_usb=False, battery=0.9) == "wake_cycle"
+
+
+def test_weather_and_moon_frame_indices():
+    assert POSE_INDEX["melting"] == 16
+    assert POSE_INDEX["hiding"] == 17
+    assert ACCENT_MOON == 4
