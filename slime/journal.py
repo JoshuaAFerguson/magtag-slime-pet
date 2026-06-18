@@ -78,7 +78,10 @@ def generate_entry(record, day_number, choice):
     _, mood_dom, season, flags, _tier = record
     ambience = _SEASON_WORD.get(season, "the usual light")
     presence = "you came near" if flags & 0b1 else "a quiet day alone"
-    closing = choice((_MOOD_WORD.get(mood_dom, "i watched the clouds"),))
+    if flags & 0b10:
+        closing = "you seemed busy"
+    else:
+        closing = choice((_MOOD_WORD.get(mood_dom, "i watched the clouds"),))
     return "Day {} - {}. {}. {}.".format(day_number, ambience, presence, closing)
 
 
