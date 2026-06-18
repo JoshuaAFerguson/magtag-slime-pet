@@ -1,0 +1,13 @@
+services:
+  oracle:
+    build: .
+    image: slime-oracle:latest
+    container_name: slime-oracle
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SLIME_LAT: "33.4484"
+      SLIME_LON: "-112.0740"
+      SLIME_TZ: "America/Phoenix"
+      # ORACLE_TOKEN: "set-a-shared-token-to-require-auth"
