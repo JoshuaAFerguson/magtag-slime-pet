@@ -5,8 +5,10 @@ from datetime import datetime
 from . import config
 
 GITHUB_EVENTS_URL = "https://api.github.com/users/{}/events"
-_HEAVY_COMMITS = 10
-_LIGHT_COMMITS = 1
+# Weighted push activity in the last 24h. GitHub's /users/{u}/events PushEvent payloads often omit
+# `size`, so we count each push as >=1 (crediting commit `size` when it is present).
+_HEAVY = 5
+_LIGHT = 1
 
 
 def fetch_events(client):
@@ -30,7 +32,7 @@ def _parse_dt(iso):
 
 def summarize(events, now):
     """Pure: events list + tz-aware `now` -> {coding_rhythm, hours_since_push}."""
-    commits = 0
+    activity = 0
     last_push = None
     for ev in events:
         if ev.get("type") != "PushEvent":
@@ -38,15 +40,15 @@ def summarize(events, now):
         created = _parse_dt(ev.get("created_at"))
         if created is None:
             continue
-        age_h = (now - created).total_seconds() / 3600.0
-        if age_h <= 24:
-            commits += ev.get("payload", {}).get("size", 0)
+        if (now - created).total_seconds() / 3600.0 <= 24:
+            size = ev.get("payload", {}).get("size")
+            activity += size if isinstance(size, int) and size > 0 else 1
         if last_push is None or created > last_push:
             last_push = created
 
-    if commits >= _HEAVY_COMMITS:
+    if activity >= _HEAVY:
         rhythm = "heavy"
-    elif commits >= _LIGHT_COMMITS:
+    elif activity >= _LIGHT:
         rhythm = "light"
     else:
         rhythm = "idle"
