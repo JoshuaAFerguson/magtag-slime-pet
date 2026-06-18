@@ -22,7 +22,11 @@ POSE_INDEX = {
     "summer_form": 13,
     "autumn_form": 14,
     "winter_form": 15,
+    "melting": 16,
+    "hiding": 17,
 }
+
+ACCENT_MOON = 4  # frame index of the moon accent in accents.bmp
 
 # Mood-tinted NeoPixel colors (R, G, B), 0..255.
 _EXPRESSION_RGB = {
