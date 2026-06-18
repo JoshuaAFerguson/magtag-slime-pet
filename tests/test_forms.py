@@ -48,3 +48,14 @@ def test_no_season_keeps_content_face():
 def test_mood_form_still_wins_over_season():
     sleepy = Mood(50, 60, 40, 90, 40)
     assert choose_render(sleepy, tier=4, sleeping=True, season="winter") == POSE_INDEX["loaf"]
+
+
+def test_weather_form_overrides_mood_face():
+    calm = Mood(60, 80, 50, 30, 40)
+    assert choose_render(calm, tier=4, sleeping=False, weather="melting") == POSE_INDEX["melting"]
+    assert choose_render(calm, tier=4, sleeping=False, weather="hiding") == POSE_INDEX["hiding"]
+
+
+def test_sleep_still_wins_over_weather():
+    sleepy = Mood(50, 60, 40, 90, 40)
+    assert choose_render(sleepy, tier=4, sleeping=True, weather="melting") == POSE_INDEX["loaf"]
