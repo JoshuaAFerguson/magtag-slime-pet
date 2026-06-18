@@ -25,6 +25,8 @@ POSES = [
     "summer_form",
     "autumn_form",
     "winter_form",
+    "melting",
+    "hiding",
 ]
 BLACK, GRAY, LIGHT, WHITE = 0, 1, 2, 3  # palette indices
 
@@ -120,6 +122,19 @@ def draw_pose(d, ox, pose):
         _blob(d, ox)
         d.rectangle([ox + 10, 44, ox + 54, 52], fill=BLACK)  # scarf
         _eyes(d, ox, 32)
+    elif pose == "melting":
+        d.rectangle([ox + 12, 40, ox + 52, 58], fill=BLACK)
+        d.rectangle([ox + 14, 42, ox + 50, 56], fill=GRAY)
+        d.rectangle([ox + 20, 56, ox + 24, 62], fill=GRAY)  # drips
+        d.rectangle([ox + 40, 56, ox + 44, 62], fill=GRAY)
+        d.rectangle([ox + 26, 48, ox + 32, 51], fill=BLACK)
+        d.rectangle([ox + 36, 48, ox + 42, 51], fill=BLACK)
+    elif pose == "hiding":
+        d.rectangle([ox + 16, 30, ox + 48, 58], fill=BLACK)
+        d.rectangle([ox + 18, 32, ox + 46, 56], fill=GRAY)
+        d.rectangle([ox + 22, 44, ox + 42, 50], fill=BLACK)  # peeking slit
+        d.rectangle([ox + 28, 46, ox + 32, 49], fill=GRAY)
+        d.rectangle([ox + 34, 46, ox + 38, 49], fill=GRAY)
     else:  # content
         _eyes(d, ox, 34)
         d.rectangle([ox + 28, 47, ox + 40, 50], fill=BLACK)
@@ -135,7 +150,7 @@ def main():
     sheet.save("assets/slime.bmp")
     print(f"wrote assets/slime.bmp ({sheet.width}x{sheet.height}, {len(POSES)} frames)")
 
-    accents = Image.new("P", (28 * 4, 28), WHITE)
+    accents = Image.new("P", (28 * 5, 28), WHITE)
     accents.putpalette([0, 0, 0, 90, 90, 90, 170, 170, 170, 255, 255, 255] + [0] * (256 * 3 - 12))
     ad = ImageDraw.Draw(accents)
     # 0 spring bud, 1 summer sun, 2 autumn leaf, 3 winter snowflake
@@ -158,8 +173,11 @@ def main():
     for ang in range(0, 180, 45):
         dx, dy = int(11 * math.cos(math.radians(ang))), int(11 * math.sin(math.radians(ang)))
         ad.line([cx - dx, cy - dy, cx + dx, cy + dy], fill=BLACK)
+    # frame 4: moon (a crescent: a disc with an offset white disc cut out)
+    ad.ellipse([112 + 6, 4, 112 + 22, 20], fill=GRAY, outline=BLACK)
+    ad.ellipse([112 + 11, 2, 112 + 27, 18], fill=WHITE)
     accents.save("assets/accents.bmp")
-    print(f"wrote assets/accents.bmp ({accents.width}x{accents.height}, 4 frames)")
+    print(f"wrote assets/accents.bmp ({accents.width}x{accents.height}, 5 frames)")
 
 
 if __name__ == "__main__":
