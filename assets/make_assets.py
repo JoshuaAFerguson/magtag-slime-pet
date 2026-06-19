@@ -140,6 +140,65 @@ def draw_pose(d, ox, pose):
         d.rectangle([ox + 28, 47, ox + 40, 50], fill=BLACK)
 
 
+def _status_icons():
+    """8 grayscale 12x12 tiles: sun, cloud, rain, storm, heat, moon, wifi-live, wifi-stale."""
+    n, sz = 8, 12
+    img = Image.new("P", (sz * n, sz), WHITE)
+    img.putpalette([0, 0, 0, 90, 90, 90, 170, 170, 170, 255, 255, 255] + [0] * (256 * 3 - 12))
+    d = ImageDraw.Draw(img)
+
+    def ox(i):
+        return i * sz
+
+    # 0 sun: disc + rays
+    cx, cy = ox(0) + 6, 6
+    d.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=BLACK)
+    for ang in range(0, 360, 45):
+        x2 = int(cx + 5 * math.cos(math.radians(ang)))
+        y2 = int(cy + 5 * math.sin(math.radians(ang)))
+        d.line([cx, cy, x2, y2], fill=BLACK)
+
+    # 1 cloud: two stacked blobs
+    d.ellipse([ox(1) + 1, 5, ox(1) + 7, 10], fill=GRAY, outline=BLACK)
+    d.ellipse([ox(1) + 4, 3, ox(1) + 11, 9], fill=GRAY, outline=BLACK)
+    d.rectangle([ox(1) + 1, 8, ox(1) + 10, 10], fill=GRAY)
+
+    # 2 rain: cloud + drops
+    d.ellipse([ox(2) + 1, 2, ox(2) + 10, 7], fill=GRAY, outline=BLACK)
+    for dx in (2, 5, 8):
+        d.line([ox(2) + dx, 8, ox(2) + dx - 1, 11], fill=BLACK)
+
+    # 3 storm: cloud + bolt
+    d.ellipse([ox(3) + 1, 1, ox(3) + 10, 6], fill=GRAY, outline=BLACK)
+    d.line([ox(3) + 6, 6, ox(3) + 4, 9], fill=BLACK)
+    d.line([ox(3) + 4, 9, ox(3) + 7, 9], fill=BLACK)
+    d.line([ox(3) + 7, 9, ox(3) + 5, 11], fill=BLACK)
+
+    # 4 heat: sun low + heat waves
+    d.ellipse([ox(4) + 3, 1, ox(4) + 9, 7], fill=BLACK)
+    for wy in (9, 11):
+        d.line([ox(4) + 1, wy, ox(4) + 10, wy], fill=GRAY)
+
+    # 5 moon: crescent
+    d.ellipse([ox(5) + 2, 1, ox(5) + 10, 10], fill=GRAY, outline=BLACK)
+    d.ellipse([ox(5) + 4, 0, ox(5) + 12, 9], fill=WHITE)
+
+    # 6 wifi-live: three arcs + dot
+    cx = ox(6) + 6
+    d.arc([cx - 5, 2, cx + 5, 14], 200, 340, fill=BLACK)
+    d.arc([cx - 3, 4, cx + 3, 12], 200, 340, fill=BLACK)
+    d.rectangle([cx - 1, 9, cx + 1, 11], fill=BLACK)
+
+    # 7 wifi-stale: same arcs, faint, with a slash
+    d.arc([cx + sz - 5, 2, cx + sz + 5, 14], 200, 340, fill=GRAY)
+    d.arc([cx + sz - 3, 4, cx + sz + 3, 12], 200, 340, fill=GRAY)
+    d.rectangle([cx + sz - 1, 9, cx + sz + 1, 11], fill=GRAY)
+    d.line([ox(7) + 1, 11, ox(7) + 11, 1], fill=BLACK)
+
+    img.save("assets/statusicons.bmp")
+    print(f"wrote assets/statusicons.bmp ({img.width}x{img.height}, {n} frames)")
+
+
 def main():
     sheet = Image.new("P", (FRAME * len(POSES), FRAME), WHITE)
     # 4-level grayscale palette (indices map to E-Ink grays)
@@ -178,6 +237,8 @@ def main():
     ad.ellipse([112 + 11, 2, 112 + 27, 18], fill=WHITE)
     accents.save("assets/accents.bmp")
     print(f"wrote assets/accents.bmp ({accents.width}x{accents.height}, 5 frames)")
+
+    _status_icons()
 
 
 if __name__ == "__main__":
