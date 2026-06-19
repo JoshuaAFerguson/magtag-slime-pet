@@ -35,6 +35,20 @@ def test_temp_str_blank_when_missing():
     assert statusbar.temp_str(Ora("clear", None, 1)) == ""
 
 
+def test_wrap_quip_short_text_unchanged():
+    assert statusbar.wrap_quip("i am here") == "i am here"
+    assert statusbar.wrap_quip("") == ""
+    assert statusbar.wrap_quip(None) == ""
+
+
+def test_wrap_quip_wraps_long_text_within_line_budget():
+    out = statusbar.wrap_quip("i watched the clouds while you worked")
+    assert "\n" in out
+    assert all(len(line) <= 22 for line in out.split("\n"))
+    # words are preserved (no mid-word breaks)
+    assert out.replace("\n", " ") == "i watched the clouds while you worked"
+
+
 def test_battery_str_rounds_and_clamps():
     assert statusbar.battery_str(0.84) == "84%"
     assert statusbar.battery_str(1.0) == "100%"

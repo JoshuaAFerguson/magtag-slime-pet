@@ -2,6 +2,31 @@
 
 from slime import timekeeping
 
+# terminalio.FONT is ~6px/char; the quip area right of the sprite fits ~22 chars per line.
+_QUIP_LINE_CHARS = 22
+
+
+def wrap_quip(text, max_chars: int = _QUIP_LINE_CHARS) -> str:
+    """Greedy word-wrap a quip into newline-separated lines of at most `max_chars`.
+
+    Keeps whole words together so the on-screen quip never runs off the panel edge.
+    """
+    if not text:
+        return ""
+    lines = []
+    cur = ""
+    for word in text.split(" "):
+        if not cur:
+            cur = word
+        elif len(cur) + 1 + len(word) <= max_chars:
+            cur = cur + " " + word
+        else:
+            lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    return "\n".join(lines)
+
 
 def clock_12h(epoch: int, tz_offset_hours: float) -> str:
     """Local time as a 12-hour string, e.g. '3:45 PM'."""

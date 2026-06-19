@@ -7,6 +7,7 @@ import displayio
 import terminalio
 from adafruit_display_text import label
 
+from slime.statusbar import wrap_quip
 from slime.visuals import expression_to_pose
 
 _FRAME = 64
@@ -137,7 +138,7 @@ class Display:
         Any status field left None renders blank/hidden (offline-first).
         """
         self._tile[0] = frame_index
-        self._quip.text = quip_text or ""
+        self._quip.text = wrap_quip(quip_text or "")
 
         left = time_str if time_str else "--:--"
         if date_str:

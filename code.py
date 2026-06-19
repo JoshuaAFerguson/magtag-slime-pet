@@ -1,5 +1,6 @@
 """Slime Pet — Local Soul entry point. Runs on the MagTag under CircuitPython."""
 
+import gc
 import time
 
 from slime import (
@@ -345,28 +346,36 @@ def main():
 
             # Per-minute bar repaint keeps the clock accurate. Network work is rate-limited
             # separately: re-acquire NTP whenever we have no clock (its first try often fails)
-            # or hourly for drift, and re-fetch the oracle only every few minutes.
+            # or hourly for drift, and re-fetch the oracle only every few minutes. The whole
+            # block is guarded so a transient hiccup (e.g. a tight-memory frame) can never kill
+            # the loop; gc.collect() keeps the heap from fragmenting under the frequent repaints.
             if not sleeping and time.monotonic() - last_clock >= _CLOCK_REFRESH:
-                if synced_epoch is None or time.monotonic() - last_ntp >= _NTP_RESYNC:
-                    e2, m2, tz = _sync_time()
-                    if e2 is not None:
-                        synced_epoch, mono_at_sync = e2, m2
-                        last_ntp = time.monotonic()
-                if time.monotonic() - last_oracle >= _ORACLE_REFRESH:
-                    new_oracle = _load_oracle(True)
-                    if new_oracle is not None:  # keep the last good oracle on a failed fetch
-                        oracle = new_oracle
-                        weather_form = oracle_mod.form_override(oracle)
-                    last_oracle = time.monotonic()
-                    persistence.save(state)
-                wifi_state = (
-                    statusbar.WIFI_LIVE
-                    if (synced_epoch is not None or oracle is not None)
-                    else statusbar.WIFI_STALE
-                )
-                batt = inputs.battery
-                fields = _status_fields(synced_epoch, mono_at_sync, tz, oracle, batt, wifi_state)
-                state = _render_frame(display, state, season, weather_form, oracle, fields)
+                try:
+                    gc.collect()
+                    if synced_epoch is None or time.monotonic() - last_ntp >= _NTP_RESYNC:
+                        e2, m2, tz = _sync_time()
+                        if e2 is not None:
+                            synced_epoch, mono_at_sync = e2, m2
+                            last_ntp = time.monotonic()
+                    if time.monotonic() - last_oracle >= _ORACLE_REFRESH:
+                        new_oracle = _load_oracle(True)
+                        if new_oracle is not None:  # keep the last good oracle on a failed fetch
+                            oracle = new_oracle
+                            weather_form = oracle_mod.form_override(oracle)
+                        last_oracle = time.monotonic()
+                        persistence.save(state)
+                    wifi_state = (
+                        statusbar.WIFI_LIVE
+                        if (synced_epoch is not None or oracle is not None)
+                        else statusbar.WIFI_STALE
+                    )
+                    batt = inputs.battery
+                    fields = _status_fields(
+                        synced_epoch, mono_at_sync, tz, oracle, batt, wifi_state
+                    )
+                    state = _render_frame(display, state, season, weather_form, oracle, fields)
+                except Exception as exc:  # never let a periodic refresh crash the creature
+                    print("periodic refresh skipped:", exc)
                 last_clock = time.monotonic()
 
             if pixels:
