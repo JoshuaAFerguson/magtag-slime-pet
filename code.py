@@ -124,6 +124,7 @@ def _status_fields(synced_epoch, mono_at_sync, tz, oracle, battery, wifi_state):
         "temp_str": statusbar.temp_str(oracle),
         "battery_str": statusbar.battery_str(battery),
         "weather_icon": statusbar.weather_icon(oracle),
+        "mail_icon": statusbar.mail_icon(oracle),
         "wifi_state": wifi_state,
     }
 
@@ -207,7 +208,11 @@ def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring,
         ordinal,
         _MOOD_BYTE.get(state.expression, 0),
         seasons.accent_frame(season),
-        (0b1 if "double_tap" in events else 0) | (0b10 if oracle_mod.is_busy(oracle) else 0),
+        (
+            (0b1 if "double_tap" in events else 0)
+            | (0b10 if oracle_mod.is_busy(oracle) else 0)
+            | (0b100 if oracle_mod.is_inbox_heavy(oracle) else 0)
+        ),
         friendship.tier(state.familiarity),
     )
     ring = journal.append(ring, record)

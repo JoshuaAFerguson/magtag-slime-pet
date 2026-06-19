@@ -80,6 +80,8 @@ def generate_entry(record, day_number, choice):
     presence = "you came near" if flags & 0b1 else "a quiet day alone"
     if flags & 0b10:
         closing = "you seemed busy"
+    elif flags & 0b100:
+        closing = "the inbox ran deep"
     else:
         closing = choice((_MOOD_WORD.get(mood_dom, "i watched the clouds"),))
     return "Day {} - {}. {}. {}.".format(day_number, ambience, presence, closing)
