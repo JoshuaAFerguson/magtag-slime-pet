@@ -20,6 +20,9 @@ def fetch(context):
         host = os.getenv("ORACLE_HOST")
         if not host:
             return None
+        # Honor an explicit scheme in ORACLE_HOST so a TLS-fronted server (and any bearer
+        # token) can ride https; a bare LAN host:port still defaults to http.
+        base = host if host.startswith(("http://", "https://")) else "http://" + host
         pool = socketpool.SocketPool(wifi.radio)
         session = adafruit_requests.Session(pool, ssl.create_default_context())
         headers = {"Content-Type": "application/json"}
@@ -27,7 +30,7 @@ def fetch(context):
         if token:
             headers["Authorization"] = "Bearer " + token
         resp = session.post(
-            "http://" + host + "/dream",
+            base.rstrip("/") + "/dream",
             data=_json.dumps(context),
             headers=headers,
             timeout=25,
