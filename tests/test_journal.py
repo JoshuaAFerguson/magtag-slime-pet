@@ -52,3 +52,17 @@ def test_busy_flag_changes_the_entry_closing():
     busy = (100, 0, 0, 0b10, 0)  # flags bit1 = busy day
     line = generate_entry(busy, day_number=5, choice=lambda s: s[0])
     assert "you seemed busy" in line
+
+
+def _rec(flags):
+    return unpack_record(pack_record(20000, 2, 1, flags, 3))
+
+
+def test_heavy_inbox_closing():
+    line = generate_entry(_rec(0b100), 5, lambda opts: opts[0])
+    assert "inbox" in line.lower()
+
+
+def test_busy_still_wins_over_inbox():
+    line = generate_entry(_rec(0b110), 5, lambda opts: opts[0])
+    assert "busy" in line.lower()

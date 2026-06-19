@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import FastAPI, Header, HTTPException
 
-from . import calendar, config, github, moon, oracle, weather
+from . import calendar, config, github, inbox, moon, oracle, weather
 
 app = FastAPI(title="Slime Oracle")
 
@@ -56,6 +56,19 @@ def _calendar():
         return None
 
 
+def _inbox():
+    """Derive the inbox block; None (omitted) on missing config or any failure."""
+    if not (config.IMAP_HOST and config.IMAP_USER and config.IMAP_PASSWORD):
+        return None
+    try:
+        unread, newest = inbox.fetch_counts(
+            config.IMAP_HOST, config.IMAP_USER, config.IMAP_PASSWORD
+        )
+        return inbox.summarize(unread, newest, int(time.time()))
+    except Exception:
+        return None
+
+
 @app.get("/oracle")
 def get_oracle(authorization: str = Header(default="")) -> dict:
     """Fetch weather + moon oracle for the configured location.
@@ -72,4 +85,6 @@ def get_oracle(authorization: str = Header(default="")) -> dict:
         w = weather.normalize(raw, now_iso=now.isoformat(timespec="minutes"))
     except Exception:
         w = {"tags": [], "temp_c": None, "code": 0, "sunset_soon": False}
-    return oracle.build(w, mooninfo, _presence(), calendar=_calendar(), ts=int(time.time()))
+    return oracle.build(
+        w, mooninfo, _presence(), calendar=_calendar(), inbox=_inbox(), ts=int(time.time())
+    )

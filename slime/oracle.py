@@ -20,6 +20,9 @@ Oracle = namedtuple(
         "day_load",
         "free_rest",
         "cal_known",
+        "inbox_load",
+        "fresh_mail",
+        "mail_known",
     ),
 )
 
@@ -54,6 +57,8 @@ _CAL_IDLE = {
     "day_load": "light",
     "free_rest_of_day": True,
 }
+_INBOX_IDS = ("clear", "light", "busy", "flooded")
+_INBOX_IDLE = {"inbox_load": "clear", "fresh_mail": False}
 
 
 def parse(payload):
@@ -72,6 +77,9 @@ def parse(payload):
     cal = payload.get("calendar")
     cal_known = cal is not None
     c = cal if cal_known else _CAL_IDLE
+    ib = payload.get("inbox")
+    mail_known = ib is not None
+    e = ib if mail_known else _INBOX_IDLE
     return Oracle(
         weather_tag=tag,
         temp_c=w.get("temp_c"),
@@ -85,14 +93,17 @@ def parse(payload):
         day_load=c.get("day_load", "light"),
         free_rest=bool(c.get("free_rest_of_day", True)),
         cal_known=cal_known,
+        inbox_load=e.get("inbox_load", "clear"),
+        fresh_mail=bool(e.get("fresh_mail", False)),
+        mail_known=mail_known,
     )
 
 
 def mood_bias(mood, oracle, rate=0.05):
-    """Nudge mood toward weather, sunset, moon, coding rhythm, and calendar tendencies.
+    """Nudge mood toward weather, sunset, moon, coding rhythm, calendar, and inbox tendencies.
 
-    Calendar drives apply only when oracle.cal_known. Returns a new Mood with
-    adjusted drives.
+    Calendar drives apply only when oracle.cal_known; inbox drives only when
+    oracle.mail_known. Returns a new Mood with adjusted drives.
     """
     if oracle is None:
         return mood
@@ -120,6 +131,17 @@ def mood_bias(mood, oracle, rate=0.05):
             vals["curiosity"] += (65.0 - vals["curiosity"]) * rate
         if oracle.meeting_soon:
             vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
+    if oracle.mail_known:
+        if oracle.inbox_load == "clear":
+            vals["comfort"] += (72.0 - vals["comfort"]) * rate
+            vals["affection"] += (66.0 - vals["affection"]) * rate
+        elif oracle.inbox_load == "flooded":
+            vals["comfort"] += (76.0 - vals["comfort"]) * rate
+            vals["energy"] += (35.0 - vals["energy"]) * rate
+        elif oracle.inbox_load == "busy":
+            vals["energy"] += (60.0 - vals["energy"]) * rate
+        if oracle.fresh_mail:
+            vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
     return clamp_mood(Mood(**vals))
 
 
@@ -131,7 +153,7 @@ def form_override(oracle):
 
 
 def quip_tag(oracle):
-    """Weather/calendar/moon/coding quip pool tag, or None."""
+    """Weather/calendar/moon/coding/inbox quip pool tag, or None."""
     if oracle is None:
         return None
     if oracle.weather_tag in _QUIP:
@@ -154,6 +176,14 @@ def quip_tag(oracle):
         return "clear_calendar"
     if oracle.hours_since_push is not None and oracle.hours_since_push >= _QUIET_GAP_HOURS:
         return "quiet"
+    if oracle.mail_known and oracle.fresh_mail:
+        return "fresh_mail"
+    if oracle.mail_known and oracle.inbox_load == "flooded":
+        return "inbox_flooded"
+    if oracle.mail_known and oracle.inbox_load == "busy":
+        return "inbox_busy"
+    if oracle.mail_known and oracle.inbox_load == "clear":
+        return "inbox_clear"
     return None
 
 
@@ -183,11 +213,22 @@ def is_in_meeting(oracle):
     return oracle is not None and oracle.cal_known and oracle.in_meeting
 
 
-_FMT_OLD = "<BBBffBf"  # pre-calendar layout (still readable for migration)
+def has_unread(oracle):
+    """True when inbox data is present and there is at least one unread message."""
+    return oracle is not None and oracle.mail_known and oracle.inbox_load != "clear"
+
+
+def is_inbox_heavy(oracle):
+    """True when inbox data is present and the inbox is flooded (drives the journal flag)."""
+    return oracle is not None and oracle.mail_known and oracle.inbox_load == "flooded"
+
+
+_FMT_OLD = "<BBBffBf"  # pre-calendar layout
 SIZE_OLD = struct.calcsize(_FMT_OLD)
-# + flags byte (bit0 in_meeting, bit1 meeting_soon, bit2 free_rest, bit3 cal_known)
-# + load byte (index into _LOAD_IDS)
-_FMT = "<BBBffBfBB"
+_FMT_CAL = "<BBBffBfBB"  # calendar-era layout (cal flags byte + day_load byte)
+SIZE_CAL = struct.calcsize(_FMT_CAL)
+# + mail flags byte (bit0 fresh_mail, bit1 mail_known) + inbox_load byte (index into _INBOX_IDS)
+_FMT = "<BBBffBfBBBB"
 SIZE = struct.calcsize(_FMT)
 
 
@@ -206,6 +247,8 @@ def pack(oracle):
         | (0b1000 if oracle.cal_known else 0)
     )
     load_id = _LOAD_IDS.index(oracle.day_load) if oracle.day_load in _LOAD_IDS else 0
+    mail_flags = (0b0001 if oracle.fresh_mail else 0) | (0b0010 if oracle.mail_known else 0)
+    inbox_id = _INBOX_IDS.index(oracle.inbox_load) if oracle.inbox_load in _INBOX_IDS else 0
     return struct.pack(
         _FMT,
         tag_id,
@@ -217,6 +260,8 @@ def pack(oracle):
         hours,
         flags,
         load_id,
+        mail_flags,
+        inbox_id,
     )
 
 
@@ -233,6 +278,9 @@ def _oracle_from(
     day_load,
     free_rest,
     cal_known,
+    inbox_load,
+    fresh_mail,
+    mail_known,
 ):
     return Oracle(
         weather_tag=_TAG_IDS[tag_id] if tag_id < len(_TAG_IDS) else "clear",
@@ -247,29 +295,42 @@ def _oracle_from(
         day_load=day_load,
         free_rest=free_rest,
         cal_known=cal_known,
+        inbox_load=inbox_load,
+        fresh_mail=fresh_mail,
+        mail_known=mail_known,
+    )
+
+
+def _from_cal_fields(
+    tag_id, phase, sunset, temp, illum, rhythm_id, hours, flags, load_id, mail_flags=0, inbox_id=0
+):
+    return _oracle_from(
+        tag_id,
+        phase,
+        sunset,
+        temp,
+        illum,
+        rhythm_id,
+        hours,
+        bool(flags & 0b0001),
+        bool(flags & 0b0010),
+        _LOAD_IDS[load_id] if load_id < len(_LOAD_IDS) else "light",
+        bool(flags & 0b0100),
+        bool(flags & 0b1000),
+        _INBOX_IDS[inbox_id] if inbox_id < len(_INBOX_IDS) else "clear",
+        bool(mail_flags & 0b0001),
+        bool(mail_flags & 0b0010),
     )
 
 
 def unpack(blob):
-    """Unpack binary form back into an Oracle. Old (pre-calendar) blobs read as cal unknown."""
+    """Unpack binary form back into an Oracle. Older blobs default the missing fields."""
     if len(blob) >= SIZE:
-        tag_id, phase, sunset, temp, illum, rhythm_id, hours, flags, load_id = struct.unpack(
-            _FMT, blob[:SIZE]
-        )
-        return _oracle_from(
-            tag_id,
-            phase,
-            sunset,
-            temp,
-            illum,
-            rhythm_id,
-            hours,
-            bool(flags & 0b0001),
-            bool(flags & 0b0010),
-            _LOAD_IDS[load_id] if load_id < len(_LOAD_IDS) else "light",
-            bool(flags & 0b0100),
-            bool(flags & 0b1000),
-        )
+        fields = struct.unpack(_FMT, blob[:SIZE])
+        return _from_cal_fields(*fields)
+    if len(blob) >= SIZE_CAL:
+        fields = struct.unpack(_FMT_CAL, blob[:SIZE_CAL])
+        return _from_cal_fields(*fields)
     tag_id, phase, sunset, temp, illum, rhythm_id, hours = struct.unpack(_FMT_OLD, blob[:SIZE_OLD])
     return _oracle_from(
         tag_id,
@@ -283,6 +344,9 @@ def unpack(blob):
         False,
         "light",
         True,
+        False,
+        "clear",
+        False,
         False,
     )
 

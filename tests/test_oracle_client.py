@@ -196,3 +196,81 @@ def test_is_in_meeting_gated_on_cal_known():
     assert is_in_meeting(parse(_with_calendar(in_meeting=True))) is True
     assert is_in_meeting(parse(_payload(["clear"]))) is False
     assert is_in_meeting(None) is False
+
+
+def _with_inbox(load="clear", fresh=False):
+    return {
+        "weather": {"tags": ["clear"], "temp_c": 25.0, "sunset_soon": False},
+        "moon": {"phase": 2, "illum": 0.5},
+        "inbox": {"inbox_load": load, "fresh_mail": fresh},
+    }
+
+
+def test_parse_reads_inbox():
+    o = parse(_with_inbox(load="flooded", fresh=True))
+    assert o.mail_known is True
+    assert o.inbox_load == "flooded"
+    assert o.fresh_mail is True
+
+
+def test_parse_inbox_unknown_when_absent():
+    o = parse(_payload(["clear"]))
+    assert o.mail_known is False
+    assert o.inbox_load == "clear"
+    assert o.fresh_mail is False
+
+
+def test_cache_roundtrip_preserves_inbox():
+    o = parse(_with_inbox(load="busy", fresh=True))
+    o2 = unpack(pack(o))
+    assert o2.mail_known is True
+    assert o2.inbox_load == "busy"
+    assert o2.fresh_mail is True
+
+
+def test_unpack_calendar_era_blob_defaults_inbox_unknown():
+    import struct
+
+    from slime.oracle import _FMT_CAL
+
+    cal_blob = struct.pack(_FMT_CAL, 1, 4, 1, 30.0, 0.98, 2, 1.5, 0b1000, 1)
+    o = unpack(cal_blob)
+    assert o.weather_tag == "storm_incoming"
+    assert o.cal_known is True
+    assert o.mail_known is False
+    assert o.inbox_load == "clear"
+
+
+def test_clear_inbox_makes_it_content():
+    o = parse(_with_inbox(load="clear"))
+    biased = mood_bias(Mood(60, 50, 50, 30, 40), o)
+    assert biased.affection >= 30
+
+
+def test_flooded_inbox_lowers_energy_not_punishing():
+    o = parse(_with_inbox(load="flooded"))
+    biased = mood_bias(Mood(60, 50, 80, 30, 40), o)
+    assert biased.energy < 80
+    assert biased.comfort >= 50
+
+
+def test_inbox_quip_tags():
+    assert quip_tag(parse(_with_inbox(load="clear"))) == "inbox_clear"
+    assert quip_tag(parse(_with_inbox(load="busy"))) == "inbox_busy"
+    assert quip_tag(parse(_with_inbox(load="flooded"))) == "inbox_flooded"
+    assert quip_tag(parse(_with_inbox(load="light", fresh=True))) == "fresh_mail"
+
+
+def test_inbox_silent_when_unknown():
+    assert quip_tag(parse(_payload(["clear"], phase=2))) is None
+
+
+def test_inbox_helpers():
+    from slime.oracle import has_unread, is_inbox_heavy
+
+    assert has_unread(parse(_with_inbox(load="busy"))) is True
+    assert has_unread(parse(_with_inbox(load="clear"))) is False
+    assert has_unread(parse(_payload(["clear"]))) is False
+    assert is_inbox_heavy(parse(_with_inbox(load="flooded"))) is True
+    assert is_inbox_heavy(parse(_with_inbox(load="busy"))) is False
+    assert is_inbox_heavy(None) is False

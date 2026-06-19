@@ -52,3 +52,10 @@ def test_calendar_pools_present_and_nonempty():
         assert tag in QUIPS
         assert len(QUIPS[tag]) >= 1
         assert pick(tag) in QUIPS[tag]
+
+
+def test_email_pools_present_and_nonempty():
+    for tag in ("fresh_mail", "inbox_clear", "inbox_busy", "inbox_flooded"):
+        assert tag in QUIPS
+        assert len(QUIPS[tag]) >= 1
+        assert pick(tag) in QUIPS[tag]

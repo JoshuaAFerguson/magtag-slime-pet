@@ -141,8 +141,9 @@ def draw_pose(d, ox, pose):
 
 
 def _status_icons():
-    """8 grayscale 12x12 tiles: sun, cloud, rain, storm, heat, moon, wifi-live, wifi-stale."""
-    n, sz = 8, 12
+    """10 grayscale 12x12 tiles: sun, cloud, rain, storm, heat, moon, wifi-live, wifi-stale,
+    mail-unread, mail-fresh."""
+    n, sz = 10, 12
     img = Image.new("P", (sz * n, sz), WHITE)
     img.putpalette([0, 0, 0, 90, 90, 90, 170, 170, 170, 255, 255, 255] + [0] * (256 * 3 - 12))
     d = ImageDraw.Draw(img)
@@ -194,6 +195,17 @@ def _status_icons():
     d.arc([cx + sz - 3, 4, cx + sz + 3, 12], 200, 340, fill=GRAY)
     d.rectangle([cx + sz - 1, 9, cx + sz + 1, 11], fill=GRAY)
     d.line([ox(7) + 1, 11, ox(7) + 11, 1], fill=BLACK)
+
+    # 8 mail-unread: envelope (body + flap)
+    d.rectangle([ox(8) + 1, 3, ox(8) + 10, 9], outline=BLACK, fill=GRAY)
+    d.line([ox(8) + 1, 3, ox(8) + 6, 7], fill=BLACK)
+    d.line([ox(8) + 10, 3, ox(8) + 6, 7], fill=BLACK)
+
+    # 9 mail-fresh: same envelope + a filled dot (new arrival)
+    d.rectangle([ox(9) + 1, 4, ox(9) + 9, 10], outline=BLACK, fill=GRAY)
+    d.line([ox(9) + 1, 4, ox(9) + 5, 7], fill=BLACK)
+    d.line([ox(9) + 9, 4, ox(9) + 5, 7], fill=BLACK)
+    d.ellipse([ox(9) + 8, 0, ox(9) + 12, 4], fill=BLACK)
 
     img.save("assets/statusicons.bmp")
     print(f"wrote assets/statusicons.bmp ({img.width}x{img.height}, {n} frames)")

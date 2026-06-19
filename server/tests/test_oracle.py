@@ -26,3 +26,14 @@ def test_build_includes_calendar_when_present():
 def test_build_omits_calendar_when_none():
     out = build({}, {}, {}, calendar=None, ts=1)
     assert "calendar" not in out
+
+
+def test_build_includes_inbox_when_present():
+    inbox = {"inbox_load": "busy", "fresh_mail": True}
+    out = build({}, {}, {}, inbox=inbox, ts=1)
+    assert out["inbox"]["inbox_load"] == "busy"
+
+
+def test_build_omits_inbox_when_none():
+    out = build({}, {}, {}, inbox=None, ts=1)
+    assert "inbox" not in out

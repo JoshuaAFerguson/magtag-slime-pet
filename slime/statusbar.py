@@ -92,6 +92,8 @@ ICON_HEAT = 4
 ICON_MOON = 5
 WIFI_LIVE = 6  # connected
 WIFI_STALE = 7  # disconnected / cached
+MAIL_UNREAD = 8  # envelope
+MAIL_FRESH = 9  # envelope with a dot (arrived recently)
 
 _WEATHER_ICON = {
     "clear": ICON_CLEAR,
@@ -119,6 +121,20 @@ def weather_icon(oracle) -> int | None:
     if oracle.weather_tag == "clear" and oracle.moon_phase in (0, 4):
         return ICON_MOON
     return _WEATHER_ICON.get(oracle.weather_tag, ICON_CLEAR)
+
+
+def mail_icon(oracle) -> int | None:
+    """Status-bar mail tile index: fresh -> MAIL_FRESH, unread -> MAIL_UNREAD, else None.
+
+    None (hidden) when there's no inbox data or the inbox is clear.
+    """
+    if oracle is None or not getattr(oracle, "mail_known", False):
+        return None
+    if oracle.fresh_mail:
+        return MAIL_FRESH
+    if oracle.inbox_load != "clear":
+        return MAIL_UNREAD
+    return None
 
 
 def refresh_interval(on_usb: bool, sleeping: bool) -> float | None:

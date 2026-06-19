@@ -91,3 +91,18 @@ def test_oracle_includes_calendar_when_configured(monkeypatch):
 def test_oracle_omits_calendar_without_url(monkeypatch):
     body = _client(monkeypatch).get("/oracle").json()
     assert "calendar" not in body
+
+
+def test_oracle_includes_inbox_when_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "IMAP_HOST", "imap.example")
+    monkeypatch.setattr(main_mod.config, "IMAP_USER", "me@example")
+    monkeypatch.setattr(main_mod.config, "IMAP_PASSWORD", "app-pw")
+    monkeypatch.setattr(main_mod.inbox, "fetch_counts", lambda h, u, p: (12, None))
+    body = _client(monkeypatch).get("/oracle").json()
+    assert "inbox" in body
+    assert body["inbox"]["inbox_load"] == "busy"
+
+
+def test_oracle_omits_inbox_without_config(monkeypatch):
+    body = _client(monkeypatch).get("/oracle").json()
+    assert "inbox" not in body

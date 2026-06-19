@@ -117,3 +117,14 @@ def test_is_sleep_mode_hysteresis_holding_and_waking():
     assert statusbar.is_sleep_mode(0.004, currently_sleeping=True) is True  # dead band
     assert statusbar.is_sleep_mode(0.0055, currently_sleeping=True) is True
     assert statusbar.is_sleep_mode(0.008, currently_sleeping=True) is False  # indoor light wakes
+
+
+Mailbox = namedtuple("Mailbox", ("mail_known", "inbox_load", "fresh_mail"))
+
+
+def test_mail_icon_states():
+    assert statusbar.mail_icon(Mailbox(True, "clear", False)) is None
+    assert statusbar.mail_icon(Mailbox(True, "busy", False)) == statusbar.MAIL_UNREAD
+    assert statusbar.mail_icon(Mailbox(True, "busy", True)) == statusbar.MAIL_FRESH
+    assert statusbar.mail_icon(Mailbox(False, "flooded", True)) is None
+    assert statusbar.mail_icon(None) is None
