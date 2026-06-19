@@ -15,3 +15,6 @@ services:
       # (compose auto-loads it for these interpolations). Empty -> presence stays "idle".
       GITHUB_USER: "${GITHUB_USER:-}"
       GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      # Calendar presence: put CALENDAR_ICS_URL (Google private iCal secret address) in
+      # the same gitignored server/.env. Empty -> calendar block omitted from /oracle.
+      CALENDAR_ICS_URL: "${CALENDAR_ICS_URL:-}"
