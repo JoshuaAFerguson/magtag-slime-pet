@@ -138,6 +138,27 @@ def _render_frame(display, state, season=None, weather=None, oracle=None, fields
     return state
 
 
+def _render_sleep(display, state, season, weather, fields):
+    """Freeze on the sleeping creature with a status bar; guarded like _render_frame."""
+    if not display:
+        return state
+    frame = choose_render(
+        state.mood, friendship.tier(state.familiarity), True, season=season, weather=weather
+    )
+    try:
+        display.render_sleep(
+            frame,
+            time_str=fields["time_str"],
+            date_str=fields["date_str"],
+            weather_icon=fields["weather_icon"],
+            wifi_state=fields["wifi_state"],
+        )
+        state = evolve(state, last_seen=time.monotonic())
+    except Exception:
+        pass
+    return state
+
+
 def _choice(seq):
     """Pick a random element (CircuitPython has random.choice)."""
     import random
@@ -262,20 +283,8 @@ def main():
         sleeping = statusbar.is_sleep_mode(inputs.light, False)
         last_scheduled = time.monotonic()
         last_ntp = time.monotonic() if synced_epoch is not None else 0.0
-        if sleeping and display:
-            display.render_sleep(
-                choose_render(
-                    state.mood,
-                    friendship.tier(state.familiarity),
-                    True,
-                    season=season,
-                    weather=weather_form,
-                ),
-                time_str=fields["time_str"],
-                date_str=fields["date_str"],
-                weather_icon=fields["weather_icon"],
-                wifi_state=fields["wifi_state"],
-            )
+        if sleeping:
+            state = _render_sleep(display, state, season, weather_form, fields)
         while True:
             now = time.monotonic()
             inputs, events, detector, last_event_time, gap = _gather(
@@ -321,20 +330,8 @@ def main():
                 fields = _status_fields(synced_epoch, mono_at_sync, tz, oracle, batt, wifi_state)
                 state = _render_frame(display, state, season, weather_form, oracle, fields)
                 last_scheduled = time.monotonic()
-            elif sleeping and not was_sleeping and display:
-                display.render_sleep(
-                    choose_render(
-                        state.mood,
-                        friendship.tier(state.familiarity),
-                        True,
-                        season=season,
-                        weather=weather_form,
-                    ),
-                    time_str=fields["time_str"],
-                    date_str=fields["date_str"],
-                    weather_icon=fields["weather_icon"],
-                    wifi_state=fields["wifi_state"],
-                )
+            elif sleeping and not was_sleeping:
+                state = _render_sleep(display, state, season, weather_form, fields)
 
             if not sleeping and time.monotonic() - last_scheduled >= statusbar.refresh_interval(
                 True, False
