@@ -18,3 +18,8 @@ services:
       # Calendar presence: put CALENDAR_ICS_URL (Google private iCal secret address) in
       # the same gitignored server/.env. Empty -> calendar block omitted from /oracle.
       CALENDAR_ICS_URL: "${CALENDAR_ICS_URL:-}"
+      # Inbox presence: put IMAP_HOST / IMAP_USER / IMAP_PASSWORD (an APP password for
+      # Gmail) in the gitignored server/.env. Empty -> inbox block omitted from /oracle.
+      IMAP_HOST: "${IMAP_HOST:-}"
+      IMAP_USER: "${IMAP_USER:-}"
+      IMAP_PASSWORD: "${IMAP_PASSWORD:-}"
