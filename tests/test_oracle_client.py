@@ -196,3 +196,46 @@ def test_is_in_meeting_gated_on_cal_known():
     assert is_in_meeting(parse(_with_calendar(in_meeting=True))) is True
     assert is_in_meeting(parse(_payload(["clear"]))) is False
     assert is_in_meeting(None) is False
+
+
+def _with_inbox(load="clear", fresh=False):
+    return {
+        "weather": {"tags": ["clear"], "temp_c": 25.0, "sunset_soon": False},
+        "moon": {"phase": 2, "illum": 0.5},
+        "inbox": {"inbox_load": load, "fresh_mail": fresh},
+    }
+
+
+def test_parse_reads_inbox():
+    o = parse(_with_inbox(load="flooded", fresh=True))
+    assert o.mail_known is True
+    assert o.inbox_load == "flooded"
+    assert o.fresh_mail is True
+
+
+def test_parse_inbox_unknown_when_absent():
+    o = parse(_payload(["clear"]))
+    assert o.mail_known is False
+    assert o.inbox_load == "clear"
+    assert o.fresh_mail is False
+
+
+def test_cache_roundtrip_preserves_inbox():
+    o = parse(_with_inbox(load="busy", fresh=True))
+    o2 = unpack(pack(o))
+    assert o2.mail_known is True
+    assert o2.inbox_load == "busy"
+    assert o2.fresh_mail is True
+
+
+def test_unpack_calendar_era_blob_defaults_inbox_unknown():
+    import struct
+
+    from slime.oracle import _FMT_CAL
+
+    cal_blob = struct.pack(_FMT_CAL, 1, 4, 1, 30.0, 0.98, 2, 1.5, 0b1000, 1)
+    o = unpack(cal_blob)
+    assert o.weather_tag == "storm_incoming"
+    assert o.cal_known is True
+    assert o.mail_known is False
+    assert o.inbox_load == "clear"
