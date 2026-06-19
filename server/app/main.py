@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import FastAPI, Header, HTTPException
 
-from . import config, github, moon, oracle, weather
+from . import calendar, config, github, moon, oracle, weather
 
 app = FastAPI(title="Slime Oracle")
 
@@ -42,6 +42,20 @@ def _presence():
         return {"coding_rhythm": "idle", "hours_since_push": None}
 
 
+def _calendar():
+    """Derive the calendar block; None (omitted) on missing URL or any failure."""
+    if not config.CALENDAR_ICS_URL:
+        return None
+    try:
+        with httpx.Client(timeout=10) as client:
+            body = calendar.fetch_ics(client, config.CALENDAR_ICS_URL)
+        now = datetime.now(timezone.utc)
+        intervals = calendar.expand_today(body, now, config.TZ)
+        return calendar.summarize(intervals, now)
+    except Exception:
+        return None
+
+
 @app.get("/oracle")
 def get_oracle(authorization: str = Header(default="")) -> dict:
     """Fetch weather + moon oracle for the configured location.
@@ -58,4 +72,4 @@ def get_oracle(authorization: str = Header(default="")) -> dict:
         w = weather.normalize(raw, now_iso=now.isoformat(timespec="minutes"))
     except Exception:
         w = {"tags": [], "temp_c": None, "code": 0, "sunset_soon": False}
-    return oracle.build(w, mooninfo, _presence(), ts=int(time.time()))
+    return oracle.build(w, mooninfo, _presence(), calendar=_calendar(), ts=int(time.time()))

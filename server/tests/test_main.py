@@ -74,3 +74,17 @@ def test_oracle_includes_presence_when_github_configured(monkeypatch):
 def test_oracle_presence_idle_without_token(monkeypatch):
     body = _client(monkeypatch).get("/oracle").json()
     assert body["presence"]["coding_rhythm"] == "idle"
+
+
+def test_oracle_includes_calendar_when_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "CALENDAR_ICS_URL", "https://example/ics")
+    monkeypatch.setattr(main_mod.calendar, "fetch_ics", lambda client, url: b"ICS")
+    monkeypatch.setattr(main_mod.calendar, "expand_today", lambda body, now, tz: [])
+    body = _client(monkeypatch).get("/oracle").json()
+    assert "calendar" in body
+    assert body["calendar"]["free_rest_of_day"] is True
+
+
+def test_oracle_omits_calendar_without_url(monkeypatch):
+    body = _client(monkeypatch).get("/oracle").json()
+    assert "calendar" not in body
