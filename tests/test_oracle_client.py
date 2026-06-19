@@ -4,6 +4,7 @@ from slime.oracle import (
     dream_refs,
     form_override,
     is_busy,
+    is_in_meeting,
     mood_bias,
     pack,
     parse,
@@ -165,3 +166,33 @@ def test_unpack_old_format_defaults_calendar_idle():
     assert o.weather_tag == "storm_incoming"
     assert o.cal_known is False
     assert o.in_meeting is False
+
+
+def test_in_meeting_calms_and_lowers_energy():
+    o = parse(_with_calendar(in_meeting=True))
+    biased = mood_bias(Mood(80, 50, 50, 30, 40), o)
+    assert biased.energy < 80
+    assert biased.comfort >= 50
+
+
+def test_free_rest_makes_it_affectionate():
+    o = parse(_with_calendar(in_meeting=False, free=True))
+    biased = mood_bias(Mood(60, 60, 40, 30, 40), o)
+    assert biased.affection > 30
+
+
+def test_calendar_quip_tags_by_priority():
+    assert quip_tag(parse(_with_calendar(soon=True))) == "meeting_soon"
+    assert quip_tag(parse(_with_calendar(in_meeting=True))) == "in_meeting"
+    assert quip_tag(parse(_with_calendar(load="heavy", free=False))) == "busy_calendar"
+    assert quip_tag(parse(_with_calendar(free=True))) == "clear_calendar"
+
+
+def test_calendar_silent_when_unknown():
+    assert quip_tag(parse(_payload(["clear"], phase=2))) is None
+
+
+def test_is_in_meeting_gated_on_cal_known():
+    assert is_in_meeting(parse(_with_calendar(in_meeting=True))) is True
+    assert is_in_meeting(parse(_payload(["clear"]))) is False
+    assert is_in_meeting(None) is False

@@ -89,9 +89,10 @@ def parse(payload):
 
 
 def mood_bias(mood, oracle, rate=0.05):
-    """Nudge mood toward the weather's tendency + a small full-moon dreaminess.
+    """Nudge mood toward weather, sunset, moon, coding rhythm, and calendar tendencies.
 
-    Returns a new Mood with adjusted drives.
+    Calendar drives apply only when oracle.cal_known. Returns a new Mood with
+    adjusted drives.
     """
     if oracle is None:
         return mood
@@ -107,6 +108,18 @@ def mood_bias(mood, oracle, rate=0.05):
     if oracle.hours_since_push is not None and oracle.hours_since_push >= _QUIET_GAP_HOURS:
         vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
         vals["affection"] += (65.0 - vals["affection"]) * rate
+    if oracle.cal_known:
+        if oracle.in_meeting:
+            vals["comfort"] += (75.0 - vals["comfort"]) * rate
+            vals["energy"] += (30.0 - vals["energy"]) * rate
+        if oracle.day_load == "heavy":
+            for drive, target in {"comfort": 78.0, "affection": 60.0, "energy": 62.0}.items():
+                vals[drive] += (target - vals[drive]) * rate
+        if oracle.free_rest and not oracle.in_meeting:
+            vals["affection"] += (68.0 - vals["affection"]) * rate
+            vals["curiosity"] += (65.0 - vals["curiosity"]) * rate
+        if oracle.meeting_soon:
+            vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
     return clamp_mood(Mood(**vals))
 
 
@@ -118,11 +131,15 @@ def form_override(oracle):
 
 
 def quip_tag(oracle):
-    """Weather/moon quip pool tag, or None."""
+    """Weather/calendar/moon/coding quip pool tag, or None."""
     if oracle is None:
         return None
     if oracle.weather_tag in _QUIP:
         return _QUIP[oracle.weather_tag]
+    if oracle.cal_known and oracle.meeting_soon:
+        return "meeting_soon"
+    if oracle.cal_known and oracle.in_meeting:
+        return "in_meeting"
     if oracle.sunset_soon:
         return "sunset"
     if oracle.moon_phase == 4:
@@ -131,6 +148,10 @@ def quip_tag(oracle):
         return "new_moon"
     if oracle.coding_rhythm in ("heavy", "light"):
         return "busy"
+    if oracle.cal_known and oracle.day_load == "heavy":
+        return "busy_calendar"
+    if oracle.cal_known and oracle.free_rest:
+        return "clear_calendar"
     if oracle.hours_since_push is not None and oracle.hours_since_push >= _QUIET_GAP_HOURS:
         return "quiet"
     return None
@@ -155,6 +176,11 @@ def dream_refs(oracle):
 def is_busy(oracle):
     """True when there's notable recent coding activity (drives the journal 'busy' flag)."""
     return oracle is not None and oracle.coding_rhythm in ("heavy", "light")
+
+
+def is_in_meeting(oracle):
+    """True only when calendar data is present and a meeting is happening now."""
+    return oracle is not None and oracle.cal_known and oracle.in_meeting
 
 
 _FMT_OLD = "<BBBffBf"  # pre-calendar layout (still readable for migration)
