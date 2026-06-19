@@ -7,6 +7,7 @@ from slime import (
     dreams,
     friendship,
     journal,
+    netdream,
     netoracle,
     nettime,
     persistence,
@@ -175,11 +176,21 @@ def _choice(seq):
     return random.choice(seq)
 
 
-def _dream_on_wake(display, sound, state, oracle=None):
-    """Generate and show a dream + maybe an artifact. Returns updated state."""
+def _dream_on_wake(display, sound, state, oracle=None, ring=None, season=None):
+    """Generate and show a dream + maybe an artifact. Returns updated state.
+
+    The dream line comes from the home-server LLM when reachable, else the on-device
+    template. The artifact roll + NVM bookkeeping always run on-device (unchanged).
+    """
     fam_tier = friendship.tier(state.familiarity)
     refs = oracle_mod.dream_refs(oracle) if oracle is not None else ()
-    line, artifact_id = dreams.generate(fam_tier, state.artifacts, _choice, extra_refs=refs)
+    template_line, artifact_id = dreams.generate(
+        fam_tier, state.artifacts, _choice, extra_refs=refs
+    )
+    records = journal.entries(ring) if ring is not None else []
+    ctx = dreams.dream_context(fam_tier, state.artifacts, records, season, oracle)
+    line = netdream.fetch(ctx) or template_line
+
     artifact_name = ""
     artifacts = state.artifacts
     if artifact_id is not None and not dreams.has_artifact(artifacts, artifact_id):
@@ -271,7 +282,7 @@ def main():
     woke_deep = power.woke_from_deep_sleep()
     # If we woke from a long deep-sleep nap, that was a "night" — dream first.
     if woke_deep and dreams.should_dream(True, _NAP_SECONDS):
-        state = _dream_on_wake(display, sound, state, oracle)
+        state = _dream_on_wake(display, sound, state, oracle, ring=ring, season=season)
 
     inputs, events, detector, last_event_time, gap = _gather(
         sensors, detector, last_event_time, now
