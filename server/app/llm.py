@@ -3,6 +3,10 @@
 Only derived mood buckets/tone-words go to the model; only a short dream line comes back.
 """
 
+import httpx
+
+from . import config
+
 
 def build_prompt(context, max_chars=120):
     """Build (system, user) prompts from a derived-context dict. Pure; tolerant of missing keys."""
@@ -55,3 +59,54 @@ def clean_dream(text, max_chars=120):
     if s and s[-1] not in ".!?":
         s += "."
     return s
+
+
+def _ollama(system, user, url, model):
+    """Call a local Ollama /api/generate. Returns raw text; raises on HTTP error."""
+    with httpx.Client(timeout=25) as client:
+        resp = client.post(
+            url.rstrip("/") + "/api/generate",
+            json={"model": model, "system": system, "prompt": user, "stream": False},
+        )
+        resp.raise_for_status()
+        return resp.json().get("response", "")
+
+
+def _anthropic(system, user, key, model):
+    """Call the Anthropic Messages REST API. Returns raw text; raises on HTTP error."""
+    with httpx.Client(timeout=25) as client:
+        resp = client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": model,
+                "max_tokens": 200,
+                "system": system,
+                "messages": [{"role": "user", "content": user}],
+            },
+        )
+        resp.raise_for_status()
+        parts = resp.json().get("content", [])
+        return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
+
+
+def generate_dream(context):
+    """Generate a cleaned dream line for the context, or None (unconfigured/empty/any error)."""
+    provider = config.DREAM_PROVIDER
+    if not provider:
+        return None
+    try:
+        system, user = build_prompt(context, config.DREAM_MAX_CHARS)
+        if provider == "ollama":
+            raw = _ollama(system, user, config.OLLAMA_URL, config.OLLAMA_MODEL)
+        elif provider == "anthropic":
+            raw = _anthropic(system, user, config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL)
+        else:
+            return None
+        return clean_dream(raw, config.DREAM_MAX_CHARS) or None
+    except Exception:
+        return None

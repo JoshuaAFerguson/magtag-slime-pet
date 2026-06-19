@@ -12,3 +12,10 @@ CALENDAR_ICS_URL = os.getenv("CALENDAR_ICS_URL", "")  # private iCal secret addr
 IMAP_HOST = os.getenv("IMAP_HOST", "")  # e.g. imap.gmail.com
 IMAP_USER = os.getenv("IMAP_USER", "")
 IMAP_PASSWORD = os.getenv("IMAP_PASSWORD", "")  # an APP password for Gmail, not the account pw
+
+DREAM_PROVIDER = os.getenv("DREAM_PROVIDER", "")  # "" | "ollama" | "anthropic"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
+DREAM_MAX_CHARS = int(os.getenv("DREAM_MAX_CHARS", "120"))
