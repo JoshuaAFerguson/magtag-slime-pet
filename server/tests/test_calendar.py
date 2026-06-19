@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from app.calendar import summarize
+from app.calendar import expand_today, summarize
 
 NOW = datetime(2026, 6, 19, 15, 0, tzinfo=timezone.utc)
 
@@ -43,3 +43,37 @@ def test_day_load_thresholds():
 def test_free_rest_of_day():
     assert summarize([_ev(-120)], NOW)["free_rest_of_day"] is True
     assert summarize([_ev(120)], NOW)["free_rest_of_day"] is False
+
+_ICS = b"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//EN
+BEGIN:VEVENT
+UID:1
+DTSTART:20260619T160000Z
+DTEND:20260619T163000Z
+SUMMARY:secret title
+END:VEVENT
+BEGIN:VEVENT
+UID:2
+DTSTART:20260101T170000Z
+DTEND:20260101T173000Z
+RRULE:FREQ=DAILY
+SUMMARY:standup
+END:VEVENT
+BEGIN:VEVENT
+UID:3
+DTSTART;VALUE=DATE:20260619
+DTEND;VALUE=DATE:20260620
+SUMMARY:all day
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+def test_expand_today_returns_timed_events_only():
+    intervals = expand_today(_ICS, NOW, "UTC")
+    assert len(intervals) == 2
+    starts = sorted(s.hour for s, _ in intervals)
+    assert starts == [16, 17]
+    for s, e in intervals:
+        assert s.tzinfo is not None and e.tzinfo is not None
