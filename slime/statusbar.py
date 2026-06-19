@@ -53,8 +53,10 @@ _WEATHER_ICON = {
     "extreme_heat": ICON_HEAT,
 }
 
-_SLEEP_ENTER = 0.08  # below this (while awake) -> enter sleep
-_SLEEP_EXIT = 0.15  # at/above this (while asleep) -> wake
+# Calibrated to the MagTag phototransistor: a normally lit indoor room reads ~0.008, and
+# genuine darkness (lights off) reads near 0. Sleep only when it's actually dark.
+_SLEEP_ENTER = 0.003  # below this (while awake) -> enter sleep
+_SLEEP_EXIT = 0.006  # at/above this (while asleep) -> wake
 _USB_REFRESH = 300.0
 _BATTERY_REFRESH = 900.0
 

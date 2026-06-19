@@ -74,14 +74,15 @@ def test_refresh_interval_by_state():
 
 
 def test_is_sleep_mode_hysteresis_entering():
-    # Not currently sleeping: only very dark (< 0.08) enters sleep.
-    assert statusbar.is_sleep_mode(0.05, currently_sleeping=False) is True
-    assert statusbar.is_sleep_mode(0.10, currently_sleeping=False) is False
-    assert statusbar.is_sleep_mode(0.20, currently_sleeping=False) is False
+    # Not currently sleeping: only genuine darkness (< 0.003) enters sleep. A normally lit
+    # indoor room (~0.008) stays awake.
+    assert statusbar.is_sleep_mode(0.001, currently_sleeping=False) is True
+    assert statusbar.is_sleep_mode(0.004, currently_sleeping=False) is False  # dead band
+    assert statusbar.is_sleep_mode(0.008, currently_sleeping=False) is False  # indoor light
 
 
 def test_is_sleep_mode_hysteresis_holding_and_waking():
-    # Already sleeping: stays asleep through the dead band, wakes only above 0.15.
-    assert statusbar.is_sleep_mode(0.10, currently_sleeping=True) is True
-    assert statusbar.is_sleep_mode(0.14, currently_sleeping=True) is True
-    assert statusbar.is_sleep_mode(0.20, currently_sleeping=True) is False
+    # Already sleeping: stays asleep through the dead band, wakes only at/above 0.006.
+    assert statusbar.is_sleep_mode(0.004, currently_sleeping=True) is True  # dead band
+    assert statusbar.is_sleep_mode(0.0055, currently_sleeping=True) is True
+    assert statusbar.is_sleep_mode(0.008, currently_sleeping=True) is False  # indoor light wakes
