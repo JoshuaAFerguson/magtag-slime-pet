@@ -27,8 +27,7 @@ from slime.visuals import CONTINUOUS, choose_run_mode, should_refresh
 # Refresh / timing constants.
 _MIN_REFRESH = 180.0
 _SCHEDULED = 21600.0
-_CLOCK_REFRESH = 60.0  # USB awake: repaint the bar each minute so the clock stays accurate
-_ORACLE_REFRESH = 300.0  # USB awake: re-fetch weather/calendar oracle every 5 min (network)
+_REFRESH = 300.0  # USB awake: one calm 5-min repaint (weather + approximate time-of-day)
 _NAP_SECONDS = 900.0  # battery awake: 15-minute refresh nap
 _DARK_NAP_SECONDS = 3600.0  # battery dark: hourly light-check nap
 _NTP_RESYNC = 3600.0  # re-sync NTP at most hourly to correct drift
@@ -117,7 +116,7 @@ def _status_fields(synced_epoch, mono_at_sync, tz, oracle, battery, wifi_state):
         time_str = date_str = None
     else:
         epoch = timekeeping.now_epoch(synced_epoch, mono_at_sync, time.monotonic())
-        time_str = statusbar.clock_12h(epoch, tz)
+        time_str = statusbar.part_of_day(epoch, tz)  # approximate, calm — no live clock
         date_str = statusbar.short_date(epoch, tz)
     return {
         "time_str": time_str,
@@ -290,8 +289,7 @@ def main():
     if choose_run_mode(inputs.on_usb, inputs.battery) == CONTINUOUS:
         t0 = time.monotonic()
         sleeping = statusbar.is_sleep_mode(inputs.light, False)
-        last_clock = time.monotonic()  # last bar repaint (clock)
-        last_oracle = time.monotonic()  # last weather/calendar network re-fetch
+        last_refresh = time.monotonic()  # last calm periodic bar repaint
         last_ntp = time.monotonic() if synced_epoch is not None else 0.0
         if sleeping:
             state = _render_sleep(display, state, season, weather_form, fields)
@@ -340,16 +338,16 @@ def main():
                 batt = inputs.battery
                 fields = _status_fields(synced_epoch, mono_at_sync, tz, oracle, batt, wifi_state)
                 state = _render_frame(display, state, season, weather_form, oracle, fields)
-                last_clock = time.monotonic()
+                last_refresh = time.monotonic()
             elif sleeping and not was_sleeping:
                 state = _render_sleep(display, state, season, weather_form, fields)
 
-            # Per-minute bar repaint keeps the clock accurate. Network work is rate-limited
-            # separately: re-acquire NTP whenever we have no clock (its first try often fails)
-            # or hourly for drift, and re-fetch the oracle only every few minutes. The whole
-            # block is guarded so a transient hiccup (e.g. a tight-memory frame) can never kill
-            # the loop; gc.collect() keeps the heap from fragmenting under the frequent repaints.
-            if not sleeping and time.monotonic() - last_clock >= _CLOCK_REFRESH:
+            # One calm periodic repaint (no live clock). Re-acquire NTP whenever we have no
+            # time yet (its first try often fails) or hourly for drift, re-fetch the oracle,
+            # and repaint the bar with the approximate time-of-day + weather. The whole block
+            # is guarded so a transient hiccup can never crash the creature; gc.collect() keeps
+            # the heap tidy across the periodic repaints.
+            if not sleeping and time.monotonic() - last_refresh >= _REFRESH:
                 try:
                     gc.collect()
                     if synced_epoch is None or time.monotonic() - last_ntp >= _NTP_RESYNC:
@@ -357,13 +355,10 @@ def main():
                         if e2 is not None:
                             synced_epoch, mono_at_sync = e2, m2
                             last_ntp = time.monotonic()
-                    if time.monotonic() - last_oracle >= _ORACLE_REFRESH:
-                        new_oracle = _load_oracle(True)
-                        if new_oracle is not None:  # keep the last good oracle on a failed fetch
-                            oracle = new_oracle
-                            weather_form = oracle_mod.form_override(oracle)
-                        last_oracle = time.monotonic()
-                        persistence.save(state)
+                    new_oracle = _load_oracle(True)
+                    if new_oracle is not None:  # keep the last good oracle on a failed fetch
+                        oracle = new_oracle
+                        weather_form = oracle_mod.form_override(oracle)
                     wifi_state = (
                         statusbar.WIFI_LIVE
                         if (synced_epoch is not None or oracle is not None)
@@ -374,9 +369,10 @@ def main():
                         synced_epoch, mono_at_sync, tz, oracle, batt, wifi_state
                     )
                     state = _render_frame(display, state, season, weather_form, oracle, fields)
+                    persistence.save(state)
                 except Exception as exc:  # never let a periodic refresh crash the creature
                     print("periodic refresh skipped:", exc)
-                last_clock = time.monotonic()
+                last_refresh = time.monotonic()
 
             if pixels:
                 if sleeping or in_meeting:

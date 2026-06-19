@@ -140,9 +140,10 @@ class Display:
         self._tile[0] = frame_index
         self._quip.text = wrap_quip(quip_text or "")
 
-        left = time_str if time_str else "--:--"
+        # Left group: "<part-of-day>  <date>" — show whichever pieces are known.
+        left = time_str or ""
         if date_str:
-            left = left + "   " + date_str
+            left = (left + "  " + date_str) if left else date_str
         self._bar_left.text = left
         self._bar_temp.text = temp_str or ""
         self._bar_batt.text = battery_str or ""

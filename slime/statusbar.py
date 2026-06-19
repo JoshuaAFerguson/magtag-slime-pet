@@ -36,6 +36,30 @@ def clock_12h(epoch: int, tz_offset_hours: float) -> str:
     return f"{h12}:{mm:02d} {suffix}"
 
 
+def part_of_day(epoch: int, tz_offset_hours: float) -> str:
+    """Soft, approximate time-of-day label (no minutes), e.g. 'late morning'.
+
+    Coarse on purpose: it changes only a few times a day, so the calm E-Ink panel
+    never needs a live per-minute clock and never wobbles across minute boundaries.
+    """
+    hh, _, _ = timekeeping.hms_from_epoch(epoch, tz_offset_hours)
+    if hh < 5:
+        return "night"
+    if hh < 8:
+        return "early morning"
+    if hh < 10:
+        return "morning"
+    if hh < 12:
+        return "late morning"
+    if hh < 14:
+        return "midday"
+    if hh < 17:
+        return "afternoon"
+    if hh < 21:
+        return "evening"
+    return "night"
+
+
 def short_date(epoch: int, tz_offset_hours: float) -> str:
     """Local date as 'Mon D', e.g. 'Jun 18'."""
     _, month, day = timekeeping.civil_from_epoch(epoch, tz_offset_hours)

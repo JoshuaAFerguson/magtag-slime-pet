@@ -23,6 +23,23 @@ def test_short_date_formats_month_abbrev_and_day():
     assert statusbar.short_date(1781740800, 0.0) == "Jun 18"
 
 
+def test_part_of_day_buckets():
+    # epoch -> local hour via tz; check each boundary bucket (tz=0 for clarity).
+    def at(h):
+        return h * 3600  # 1970-01-01 h:00 UTC
+
+    assert statusbar.part_of_day(at(2), 0.0) == "night"
+    assert statusbar.part_of_day(at(6), 0.0) == "early morning"
+    assert statusbar.part_of_day(at(9), 0.0) == "morning"
+    assert statusbar.part_of_day(at(10), 0.0) == "late morning"
+    assert statusbar.part_of_day(at(13), 0.0) == "midday"
+    assert statusbar.part_of_day(at(15), 0.0) == "afternoon"
+    assert statusbar.part_of_day(at(19), 0.0) == "evening"
+    assert statusbar.part_of_day(at(23), 0.0) == "night"
+    # tz applied: 17:00 UTC at tz -7 -> 10:00 local -> late morning
+    assert statusbar.part_of_day(at(17), -7.0) == "late morning"
+
+
 def test_temp_str_converts_celsius_to_whole_fahrenheit():
     # ASCII 'F' suffix: terminalio.FONT has no degree glyph, so '°' would drop on-device.
     assert statusbar.temp_str(Ora("clear", 0.0, 1)) == "32F"
