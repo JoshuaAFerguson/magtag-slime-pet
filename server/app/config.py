@@ -8,3 +8,4 @@ TZ = os.getenv("SLIME_TZ", "America/Phoenix")
 ORACLE_TOKEN = os.getenv("ORACLE_TOKEN", "")  # empty -> no auth on the LAN
 GITHUB_USER = os.getenv("GITHUB_USER", "")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+CALENDAR_ICS_URL = os.getenv("CALENDAR_ICS_URL", "")  # private iCal secret address; empty -> off

@@ -1,5 +1,7 @@
 """FastAPI endpoint tests: /health, /oracle with auth."""
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 
 import app.main as main_mod
@@ -60,12 +62,13 @@ def test_oracle_requires_token_when_configured(monkeypatch):
 
 def test_oracle_includes_presence_when_github_configured(monkeypatch):
     monkeypatch.setattr(main_mod.config, "GITHUB_USER", "octocat")
+    # Use a `now`-relative timestamp so the push stays inside the 24h activity window
+    # regardless of the wall-clock date the suite runs on.
+    recent = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     monkeypatch.setattr(
         main_mod.github,
         "fetch_events",
-        lambda client: [
-            {"type": "PushEvent", "created_at": "2026-06-18T14:30:00Z", "payload": {"size": 12}}
-        ],
+        lambda client: [{"type": "PushEvent", "created_at": recent, "payload": {"size": 12}}],
     )
     body = _client(monkeypatch).get("/oracle").json()
     assert body["presence"]["coding_rhythm"] == "heavy"
@@ -74,3 +77,17 @@ def test_oracle_includes_presence_when_github_configured(monkeypatch):
 def test_oracle_presence_idle_without_token(monkeypatch):
     body = _client(monkeypatch).get("/oracle").json()
     assert body["presence"]["coding_rhythm"] == "idle"
+
+
+def test_oracle_includes_calendar_when_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "CALENDAR_ICS_URL", "https://example/ics")
+    monkeypatch.setattr(main_mod.calendar, "fetch_ics", lambda client, url: b"ICS")
+    monkeypatch.setattr(main_mod.calendar, "expand_today", lambda body, now, tz: [])
+    body = _client(monkeypatch).get("/oracle").json()
+    assert "calendar" in body
+    assert body["calendar"]["free_rest_of_day"] is True
+
+
+def test_oracle_omits_calendar_without_url(monkeypatch):
+    body = _client(monkeypatch).get("/oracle").json()
+    assert "calendar" not in body

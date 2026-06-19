@@ -45,3 +45,10 @@ def test_presence_quip_pools_exist():
     for tag in ("busy", "quiet"):
         assert tag in QUIPS
         assert len(QUIPS[tag]) >= 2
+
+
+def test_calendar_pools_present_and_nonempty():
+    for tag in ("meeting_soon", "in_meeting", "busy_calendar", "clear_calendar"):
+        assert tag in QUIPS
+        assert len(QUIPS[tag]) >= 1
+        assert pick(tag) in QUIPS[tag]

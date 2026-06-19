@@ -10,3 +10,19 @@ def test_build_shapes_payload():
     assert out["moon"]["phase"] == 4
     assert out["presence"]["coding_rhythm"] == "heavy"
     assert out["ts"] == 1718900000
+
+
+def test_build_includes_calendar_when_present():
+    cal = {
+        "in_meeting": True,
+        "meeting_soon": False,
+        "day_load": "heavy",
+        "free_rest_of_day": False,
+    }
+    out = build({}, {}, {}, calendar=cal, ts=1)
+    assert out["calendar"]["in_meeting"] is True
+
+
+def test_build_omits_calendar_when_none():
+    out = build({}, {}, {}, calendar=None, ts=1)
+    assert "calendar" not in out

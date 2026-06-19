@@ -104,6 +104,26 @@ QUIPS = {
         "where did you wander?",
         "i kept your seat warm",
     ),
+    "meeting_soon": (
+        "something starts soon",
+        "your day is about to turn",
+        "i'll keep quiet in a moment",
+    ),
+    "in_meeting": (
+        "i'll be still for now",
+        "go on, i'm listening too",
+        "quiet company while you talk",
+    ),
+    "busy_calendar": (
+        "a full day ahead",
+        "so many moments booked",
+        "i'll wait between your meetings",
+    ),
+    "clear_calendar": (
+        "the day is open",
+        "nothing pulls you away",
+        "all this time is yours",
+    ),
 }
 
 

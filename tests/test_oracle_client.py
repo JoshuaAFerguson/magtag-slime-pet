@@ -4,6 +4,7 @@ from slime.oracle import (
     dream_refs,
     form_override,
     is_busy,
+    is_in_meeting,
     mood_bias,
     pack,
     parse,
@@ -114,3 +115,84 @@ def test_cache_roundtrip_preserves_presence():
     o2 = unpack(pack(o))
     assert o2.coding_rhythm == "light"
     assert abs(o2.hours_since_push - 4.5) < 0.01
+
+
+def _with_calendar(in_meeting=False, soon=False, load="light", free=True):
+    return {
+        "weather": {"tags": ["clear"], "temp_c": 25.0, "sunset_soon": False},
+        "moon": {"phase": 2, "illum": 0.5},
+        "calendar": {
+            "in_meeting": in_meeting,
+            "meeting_soon": soon,
+            "day_load": load,
+            "free_rest_of_day": free,
+        },
+    }
+
+
+def test_parse_reads_calendar():
+    o = parse(_with_calendar(in_meeting=True, load="heavy", free=False))
+    assert o.cal_known is True
+    assert o.in_meeting is True
+    assert o.day_load == "heavy"
+    assert o.free_rest is False
+
+
+def test_parse_calendar_unknown_when_absent():
+    o = parse(_payload(["clear"]))
+    assert o.cal_known is False
+    assert o.in_meeting is False
+    assert o.day_load == "light"
+    assert o.free_rest is True
+
+
+def test_cache_roundtrip_preserves_calendar():
+    o = parse(_with_calendar(in_meeting=True, soon=True, load="normal", free=False))
+    o2 = unpack(pack(o))
+    assert o2.cal_known is True
+    assert o2.in_meeting is True
+    assert o2.meeting_soon is True
+    assert o2.day_load == "normal"
+    assert o2.free_rest is False
+
+
+def test_unpack_old_format_defaults_calendar_idle():
+    import struct
+
+    from slime.oracle import _FMT_OLD
+
+    old = struct.pack(_FMT_OLD, 1, 4, 1, 30.0, 0.98, 2, 1.5)
+    o = unpack(old)
+    assert o.weather_tag == "storm_incoming"
+    assert o.cal_known is False
+    assert o.in_meeting is False
+
+
+def test_in_meeting_calms_and_lowers_energy():
+    o = parse(_with_calendar(in_meeting=True))
+    biased = mood_bias(Mood(80, 50, 50, 30, 40), o)
+    assert biased.energy < 80
+    assert biased.comfort >= 50
+
+
+def test_free_rest_makes_it_affectionate():
+    o = parse(_with_calendar(in_meeting=False, free=True))
+    biased = mood_bias(Mood(60, 60, 40, 30, 40), o)
+    assert biased.affection > 30
+
+
+def test_calendar_quip_tags_by_priority():
+    assert quip_tag(parse(_with_calendar(soon=True))) == "meeting_soon"
+    assert quip_tag(parse(_with_calendar(in_meeting=True))) == "in_meeting"
+    assert quip_tag(parse(_with_calendar(load="heavy", free=False))) == "busy_calendar"
+    assert quip_tag(parse(_with_calendar(free=True))) == "clear_calendar"
+
+
+def test_calendar_silent_when_unknown():
+    assert quip_tag(parse(_payload(["clear"], phase=2))) is None
+
+
+def test_is_in_meeting_gated_on_cal_known():
+    assert is_in_meeting(parse(_with_calendar(in_meeting=True))) is True
+    assert is_in_meeting(parse(_payload(["clear"]))) is False
+    assert is_in_meeting(None) is False
