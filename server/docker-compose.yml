@@ -23,3 +23,11 @@ services:
       IMAP_HOST: "${IMAP_HOST:-}"
       IMAP_USER: "${IMAP_USER:-}"
       IMAP_PASSWORD: "${IMAP_PASSWORD:-}"
+      # LLM dreams: DREAM_PROVIDER = "ollama" or "anthropic" (empty -> template dreams only).
+      # Ollama: set OLLAMA_URL/OLLAMA_MODEL. Anthropic: set ANTHROPIC_API_KEY/ANTHROPIC_MODEL.
+      DREAM_PROVIDER: "${DREAM_PROVIDER:-}"
+      OLLAMA_URL: "${OLLAMA_URL:-http://localhost:11434}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.2}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-claude-haiku-4-5}"
+      DREAM_MAX_CHARS: "${DREAM_MAX_CHARS:-120}"

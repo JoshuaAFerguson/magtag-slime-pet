@@ -4,9 +4,9 @@ import time
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import Body, FastAPI, Header, HTTPException
 
-from . import calendar, config, github, inbox, moon, oracle, weather
+from . import calendar, config, github, inbox, llm, moon, oracle, weather
 
 app = FastAPI(title="Slime Oracle")
 
@@ -88,3 +88,15 @@ def get_oracle(authorization: str = Header(default="")) -> dict:
     return oracle.build(
         w, mooninfo, _presence(), calendar=_calendar(), inbox=_inbox(), ts=int(time.time())
     )
+
+
+@app.post("/dream")
+def post_dream(body: dict = Body(default={}), authorization: str = Header(default="")) -> dict:
+    """Generate an LLM dream line from the device-supplied derived context.
+
+    The device sends its full derived context (weather/moon/rhythm/day_load/inbox + fam/
+    tones/artifacts/season); we just run the model. Never 500s — returns {"dream": None}
+    on any failure so the device falls back to its on-device templates.
+    """
+    _check_auth(authorization)
+    return {"dream": llm.generate_dream(body or {})}

@@ -106,3 +106,26 @@ def test_oracle_includes_inbox_when_configured(monkeypatch):
 def test_oracle_omits_inbox_without_config(monkeypatch):
     body = _client(monkeypatch).get("/oracle").json()
     assert "inbox" not in body
+
+
+def test_dream_returns_line(monkeypatch):
+    monkeypatch.setattr(main_mod.llm, "generate_dream", lambda ctx: "i drifted past slow clouds.")
+    c = _client(monkeypatch)
+    r = c.post("/dream", json={"fam": 3, "tones": ["quiet"], "weather": "rain"})
+    assert r.status_code == 200
+    assert r.json()["dream"] == "i drifted past slow clouds."
+
+
+def test_dream_returns_none_when_unconfigured(monkeypatch):
+    monkeypatch.setattr(main_mod.llm, "generate_dream", lambda ctx: None)
+    r = _client(monkeypatch).post("/dream", json={})
+    assert r.status_code == 200
+    assert r.json()["dream"] is None
+
+
+def test_dream_requires_token_when_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "ORACLE_TOKEN", "sekret")
+    monkeypatch.setattr(main_mod.llm, "generate_dream", lambda ctx: "x.")
+    c = _client(monkeypatch)
+    assert c.post("/dream", json={}).status_code == 401
+    assert c.post("/dream", json={}, headers={"Authorization": "Bearer sekret"}).status_code == 200
