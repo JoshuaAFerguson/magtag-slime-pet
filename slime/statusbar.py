@@ -18,10 +18,14 @@ def short_date(epoch: int, tz_offset_hours: float) -> str:
 
 
 def temp_str(oracle) -> str:
-    """Whole-degree Fahrenheit from the oracle's Celsius temp, '' if unknown."""
+    """Whole-degree Fahrenheit from the oracle's Celsius temp, '' if unknown.
+
+    Renders as e.g. '94F' — the built-in terminalio.FONT is ASCII-only and has no
+    degree glyph (U+00B0), so a literal '°' would silently drop on the device.
+    """
     if oracle is None or oracle.temp_c is None:
         return ""
-    return f"{round(oracle.temp_c * 9 / 5 + 32)}°"
+    return f"{round(oracle.temp_c * 9 / 5 + 32)}F"
 
 
 def battery_str(frac: float) -> str:

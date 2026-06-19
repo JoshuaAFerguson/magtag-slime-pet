@@ -24,9 +24,10 @@ def test_short_date_formats_month_abbrev_and_day():
 
 
 def test_temp_str_converts_celsius_to_whole_fahrenheit():
-    assert statusbar.temp_str(Ora("clear", 0.0, 1)) == "32°"
-    assert statusbar.temp_str(Ora("extreme_heat", 38.9, 1)) == "102°"
-    assert statusbar.temp_str(Ora("cold", -10.0, 1)) == "14°"
+    # ASCII 'F' suffix: terminalio.FONT has no degree glyph, so '°' would drop on-device.
+    assert statusbar.temp_str(Ora("clear", 0.0, 1)) == "32F"
+    assert statusbar.temp_str(Ora("extreme_heat", 38.9, 1)) == "102F"
+    assert statusbar.temp_str(Ora("cold", -10.0, 1)) == "14F"
 
 
 def test_temp_str_blank_when_missing():
