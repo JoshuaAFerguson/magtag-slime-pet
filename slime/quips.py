@@ -124,6 +124,26 @@ QUIPS = {
         "nothing pulls you away",
         "all this time is yours",
     ),
+    "fresh_mail": (
+        "something new arrived",
+        "a fresh note for you",
+        "the inbox just stirred",
+    ),
+    "inbox_clear": (
+        "all caught up",
+        "your inbox is calm",
+        "nothing left waiting",
+    ),
+    "inbox_busy": (
+        "a lot landed today",
+        "the inbox is busy",
+        "messages are stacking",
+    ),
+    "inbox_flooded": (
+        "the inbox is deep today",
+        "so much is waiting",
+        "i'll keep you company",
+    ),
 }
 
 

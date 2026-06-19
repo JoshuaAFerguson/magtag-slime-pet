@@ -100,10 +100,10 @@ def parse(payload):
 
 
 def mood_bias(mood, oracle, rate=0.05):
-    """Nudge mood toward weather, sunset, moon, coding rhythm, and calendar tendencies.
+    """Nudge mood toward weather, sunset, moon, coding rhythm, calendar, and inbox tendencies.
 
-    Calendar drives apply only when oracle.cal_known. Returns a new Mood with
-    adjusted drives.
+    Calendar drives apply only when oracle.cal_known; inbox drives only when
+    oracle.mail_known. Returns a new Mood with adjusted drives.
     """
     if oracle is None:
         return mood
@@ -131,6 +131,17 @@ def mood_bias(mood, oracle, rate=0.05):
             vals["curiosity"] += (65.0 - vals["curiosity"]) * rate
         if oracle.meeting_soon:
             vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
+    if oracle.mail_known:
+        if oracle.inbox_load == "clear":
+            vals["comfort"] += (72.0 - vals["comfort"]) * rate
+            vals["affection"] += (66.0 - vals["affection"]) * rate
+        elif oracle.inbox_load == "flooded":
+            vals["comfort"] += (76.0 - vals["comfort"]) * rate
+            vals["energy"] += (35.0 - vals["energy"]) * rate
+        elif oracle.inbox_load == "busy":
+            vals["energy"] += (60.0 - vals["energy"]) * rate
+        if oracle.fresh_mail:
+            vals["curiosity"] += (70.0 - vals["curiosity"]) * rate
     return clamp_mood(Mood(**vals))
 
 
@@ -142,7 +153,7 @@ def form_override(oracle):
 
 
 def quip_tag(oracle):
-    """Weather/calendar/moon/coding quip pool tag, or None."""
+    """Weather/calendar/moon/coding/inbox quip pool tag, or None."""
     if oracle is None:
         return None
     if oracle.weather_tag in _QUIP:
@@ -165,6 +176,14 @@ def quip_tag(oracle):
         return "clear_calendar"
     if oracle.hours_since_push is not None and oracle.hours_since_push >= _QUIET_GAP_HOURS:
         return "quiet"
+    if oracle.mail_known and oracle.fresh_mail:
+        return "fresh_mail"
+    if oracle.mail_known and oracle.inbox_load == "flooded":
+        return "inbox_flooded"
+    if oracle.mail_known and oracle.inbox_load == "busy":
+        return "inbox_busy"
+    if oracle.mail_known and oracle.inbox_load == "clear":
+        return "inbox_clear"
     return None
 
 
@@ -192,6 +211,16 @@ def is_busy(oracle):
 def is_in_meeting(oracle):
     """True only when calendar data is present and a meeting is happening now."""
     return oracle is not None and oracle.cal_known and oracle.in_meeting
+
+
+def has_unread(oracle):
+    """True when inbox data is present and there is at least one unread message."""
+    return oracle is not None and oracle.mail_known and oracle.inbox_load != "clear"
+
+
+def is_inbox_heavy(oracle):
+    """True when inbox data is present and the inbox is flooded (drives the journal flag)."""
+    return oracle is not None and oracle.mail_known and oracle.inbox_load == "flooded"
 
 
 _FMT_OLD = "<BBBffBf"  # pre-calendar layout
