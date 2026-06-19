@@ -2,6 +2,21 @@
 
 _SECONDS_PER_DAY: int = 86400
 
+MONTH_ABBR: tuple[str, ...] = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
 
 def now_epoch(synced_epoch: int, mono_at_sync: float, mono_now: float) -> int:
     """Current epoch seconds = last sync epoch + elapsed monotonic since that sync."""
@@ -10,6 +25,12 @@ def now_epoch(synced_epoch: int, mono_at_sync: float, mono_now: float) -> int:
 
 def _local_seconds(epoch: int, tz_offset_hours: float) -> int:
     return epoch + int(tz_offset_hours * 3600)
+
+
+def hms_from_epoch(epoch: int, tz_offset_hours: float) -> tuple[int, int, int]:
+    """Return (hours, minutes, seconds) of the local time-of-day."""
+    secs_into_day = _local_seconds(epoch, tz_offset_hours) % _SECONDS_PER_DAY
+    return (secs_into_day // 3600, (secs_into_day % 3600) // 60, secs_into_day % 60)
 
 
 def day_ordinal(epoch: int, tz_offset_hours: float) -> int:
