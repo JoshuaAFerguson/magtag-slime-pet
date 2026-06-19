@@ -40,3 +40,47 @@ def test_battery_str_rounds_and_clamps():
     assert statusbar.battery_str(0.0) == "0%"
     assert statusbar.battery_str(1.5) == "100%"
     assert statusbar.battery_str(-0.2) == "0%"
+
+
+def test_weather_icon_maps_known_tags():
+    assert statusbar.weather_icon(Ora("clear", 30.0, 1)) == statusbar.ICON_CLEAR
+    assert statusbar.weather_icon(Ora("cold", 5.0, 1)) == statusbar.ICON_CLOUD
+    assert statusbar.weather_icon(Ora("rain", 18.0, 1)) == statusbar.ICON_RAIN
+    assert statusbar.weather_icon(Ora("storm_incoming", 25.0, 1)) == statusbar.ICON_STORM
+    assert statusbar.weather_icon(Ora("monsoon", 25.0, 1)) == statusbar.ICON_STORM
+    assert statusbar.weather_icon(Ora("extreme_heat", 44.0, 1)) == statusbar.ICON_HEAT
+
+
+def test_weather_icon_shows_moon_on_clear_notable_phase():
+    # Clear sky + new (0) or full (4) moon -> moon glyph instead of sun.
+    assert statusbar.weather_icon(Ora("clear", 20.0, 4)) == statusbar.ICON_MOON
+    assert statusbar.weather_icon(Ora("clear", 20.0, 0)) == statusbar.ICON_MOON
+
+
+def test_weather_icon_none_when_no_oracle():
+    assert statusbar.weather_icon(None) is None
+
+
+def test_wifi_constants_distinct():
+    assert statusbar.WIFI_LIVE != statusbar.WIFI_STALE
+
+
+def test_refresh_interval_by_state():
+    assert statusbar.refresh_interval(on_usb=True, sleeping=False) == 300.0
+    assert statusbar.refresh_interval(on_usb=False, sleeping=False) == 900.0
+    assert statusbar.refresh_interval(on_usb=True, sleeping=True) is None
+    assert statusbar.refresh_interval(on_usb=False, sleeping=True) is None
+
+
+def test_is_sleep_mode_hysteresis_entering():
+    # Not currently sleeping: only very dark (< 0.08) enters sleep.
+    assert statusbar.is_sleep_mode(0.05, currently_sleeping=False) is True
+    assert statusbar.is_sleep_mode(0.10, currently_sleeping=False) is False
+    assert statusbar.is_sleep_mode(0.20, currently_sleeping=False) is False
+
+
+def test_is_sleep_mode_hysteresis_holding_and_waking():
+    # Already sleeping: stays asleep through the dead band, wakes only above 0.15.
+    assert statusbar.is_sleep_mode(0.10, currently_sleeping=True) is True
+    assert statusbar.is_sleep_mode(0.14, currently_sleeping=True) is True
+    assert statusbar.is_sleep_mode(0.20, currently_sleeping=True) is False
