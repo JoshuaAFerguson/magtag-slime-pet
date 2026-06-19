@@ -1,12 +1,20 @@
 """Tests for pure dream assembly and artifact memory."""
 
+from collections import namedtuple
+
 from slime.dreams import (
     ARTIFACTS,
     add_artifact,
     artifact_name,
+    dream_context,
     generate,
     has_artifact,
     should_dream,
+)
+
+# Stand-in for slime.oracle.Oracle's fields used by dream_context.
+Ora = namedtuple(
+    "Ora", "weather_tag moon_phase coding_rhythm cal_known day_load mail_known inbox_load"
 )
 
 
@@ -50,3 +58,40 @@ def test_generate_weaves_extra_ref_when_provided():
         tier=0, artifacts_mask=0, choice=lambda s: s[0], extra_refs=("beneath the full moon",)
     )
     assert "beneath the full moon" in line
+
+
+def _rec(flags):
+    # journal record tuple: (day_ordinal, mood_dom, season, flags, tier)
+    return (20000, 2, 1, flags, 3)
+
+
+def test_dream_context_tones_and_artifacts_from_state():
+    ctx = dream_context(3, 0b101, [_rec(0b10)], "summer", None)  # busy flag, 2 artifacts
+    assert ctx["fam"] == 3
+    assert "busy" in ctx["tones"]
+    assert ctx["artifacts"] == 2
+    assert ctx["season"] == "summer"
+
+
+def test_dream_context_quiet_when_no_flags():
+    ctx = dream_context(1, 0, [], "winter", None)
+    assert ctx["tones"] == ["quiet"]
+    assert ctx["artifacts"] == 0
+
+
+def test_dream_context_includes_oracle_signals():
+    o = Ora("rain", 4, "heavy", True, "busy", True, "flooded")
+    ctx = dream_context(2, 0, [], "spring", o)
+    assert ctx["weather"] == "rain"
+    assert ctx["moon"] == 4
+    assert ctx["rhythm"] == "heavy"
+    assert ctx["day_load"] == "busy"
+    assert ctx["inbox"] == "flooded"
+
+
+def test_dream_context_omits_gated_oracle_fields_when_unknown():
+    o = Ora("clear", 2, "idle", False, "light", False, "clear")
+    ctx = dream_context(0, 0, [], "autumn", o)
+    assert "day_load" not in ctx  # cal_known False
+    assert "inbox" not in ctx  # mail_known False
+    assert ctx["weather"] == "clear"

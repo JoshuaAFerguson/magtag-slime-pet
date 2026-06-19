@@ -33,6 +33,48 @@ _PERSONAL = (
 
 _MIN_SLEEP = 900.0  # seconds asleep before a dream forms
 
+# Journal flag bits -> short tone-words for the dream context (matches code.py _maybe_journal).
+_TONE_BITS = ((0b10, "busy"), (0b100, "mail"), (0b1, "visited"))
+
+
+def _popcount(mask):
+    count = 0
+    while mask:
+        count += mask & 1
+        mask >>= 1
+    return count
+
+
+def dream_context(tier, artifacts_mask, journal_records, season, oracle):
+    """Build the compact derived context the device sends to the dream server. Pure.
+
+    `journal_records` are journal entry tuples (day_ordinal, mood_dom, season, flags, tier);
+    tone-words come from the most recent up-to-2 records' flags. `oracle` may be None.
+    """
+    tones = []
+    for record in reversed(list(journal_records)[-2:]):
+        flags = record[3]
+        for bit, word in _TONE_BITS:
+            if flags & bit and word not in tones:
+                tones.append(word)
+    if not tones:
+        tones = ["quiet"]
+    ctx = {
+        "fam": tier,
+        "tones": tones[:2],
+        "season": season or "",
+        "artifacts": _popcount(artifacts_mask),
+    }
+    if oracle is not None:
+        ctx["weather"] = oracle.weather_tag
+        ctx["moon"] = oracle.moon_phase
+        ctx["rhythm"] = oracle.coding_rhythm
+        if oracle.cal_known:
+            ctx["day_load"] = oracle.day_load
+        if oracle.mail_known:
+            ctx["inbox"] = oracle.inbox_load
+    return ctx
+
 
 def should_dream(slept, sleep_seconds):
     """A dream forms only on waking from a sufficiently long sleep."""
