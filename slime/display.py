@@ -101,6 +101,18 @@ class Display:
         self._bar_temp.anchored_position = (w - 72, 3)
         self._root.append(self._bar_temp)
 
+        self._mail = displayio.TileGrid(
+            self._icons_bmp,
+            pixel_shader=self._icons_bmp.pixel_shader,
+            width=1,
+            height=1,
+            tile_width=12,
+            tile_height=12,
+        )
+        self._mail.x = w - 110  # left of the temp text; first-guess, tuned on-device
+        self._mail.y = 2
+        self._mail_hidden = True
+
         # Hairline divider beneath the bar.
         div = displayio.Bitmap(w, 1, 1)
         div_pal = displayio.Palette(1)
@@ -132,6 +144,7 @@ class Display:
         battery_str=None,
         weather_icon=None,
         wifi_state=None,
+        mail_icon=None,
     ):
         """Set the sprite frame + quip + status bar fields and refresh.
 
@@ -149,6 +162,7 @@ class Display:
         self._bar_batt.text = battery_str or ""
         self._set_tile(self._weather, "_weather_hidden", weather_icon)
         self._set_tile(self._wifi, "_wifi_hidden", wifi_state)
+        self._set_tile(self._mail, "_mail_hidden", mail_icon)
 
         self._display.root_group = self._root
         while self._display.time_to_refresh > 0:
@@ -163,6 +177,7 @@ class Display:
         date_str=None,
         weather_icon=None,
         wifi_state=None,
+        mail_icon=None,
     ):
         """Paint the sleeping creature once with a frozen bar (no quip). Caller then stops
         repainting until light returns."""
@@ -175,6 +190,7 @@ class Display:
             battery_str=None,
             weather_icon=weather_icon,
             wifi_state=wifi_state,
+            mail_icon=mail_icon,
         )
 
     def render(self, expression, quip_text=""):
