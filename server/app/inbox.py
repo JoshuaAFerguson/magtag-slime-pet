@@ -11,7 +11,7 @@ _BUSY_MAX = 30
 _FRESH_MIN = 60
 
 
-def _internaldate_epoch(fetch_data):
+def _internaldate_epoch(fetch_data: list | None) -> int | None:
     """Parse the newest message's INTERNALDATE (UTC epoch int), or None on any problem."""
     for part in fetch_data or ():
         raw = part[0] if isinstance(part, tuple) else part
@@ -28,7 +28,7 @@ def _internaldate_epoch(fetch_data):
     return None
 
 
-def fetch_counts(host, user, password):
+def fetch_counts(host: str, user: str, password: str) -> tuple[int, int | None]:
     """Read-only IMAP INBOX -> (unread_count, newest_unseen_epoch_or_None).
 
     Connects over SSL, counts UNSEEN, and reads only the newest unseen message's
@@ -53,7 +53,7 @@ def fetch_counts(host, user, password):
             pass
 
 
-def summarize(unread, newest_unseen_epoch, now_epoch):
+def summarize(unread: int, newest_unseen_epoch: int | None, now_epoch: int) -> dict[str, object]:
     """Pure: unread count + newest-unseen epoch + now epoch -> {inbox_load, fresh_mail}."""
     if unread <= 0:
         load = "clear"

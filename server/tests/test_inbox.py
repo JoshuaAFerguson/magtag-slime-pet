@@ -16,6 +16,7 @@ def test_fresh_mail_window():
     assert summarize(3, NOW - 600, NOW)["fresh_mail"] is True
     assert summarize(3, NOW - 5400, NOW)["fresh_mail"] is False
     assert summarize(3, NOW - 3600, NOW)["fresh_mail"] is True
+    assert summarize(3, NOW + 1, NOW)["fresh_mail"] is False
 
 
 def test_fresh_false_when_no_unread_or_no_date():
