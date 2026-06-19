@@ -15,6 +15,11 @@ Oracle = namedtuple(
         "sunset_soon",
         "coding_rhythm",
         "hours_since_push",
+        "in_meeting",
+        "meeting_soon",
+        "day_load",
+        "free_rest",
+        "cal_known",
     ),
 )
 
@@ -42,6 +47,14 @@ _RHYTHM_TARGETS = {
 }
 _QUIET_GAP_HOURS = 36.0
 
+_LOAD_IDS = ("light", "normal", "heavy")
+_CAL_IDLE = {
+    "in_meeting": False,
+    "meeting_soon": False,
+    "day_load": "light",
+    "free_rest_of_day": True,
+}
+
 
 def parse(payload):
     """Map an /oracle dict to an Oracle, or None if there's nothing usable."""
@@ -56,6 +69,9 @@ def parse(payload):
         if candidate in tags:
             tag = candidate
             break
+    cal = payload.get("calendar")
+    cal_known = cal is not None
+    c = cal if cal_known else _CAL_IDLE
     return Oracle(
         weather_tag=tag,
         temp_c=w.get("temp_c"),
@@ -64,6 +80,11 @@ def parse(payload):
         sunset_soon=bool(w.get("sunset_soon", False)),
         coding_rhythm=p.get("coding_rhythm", "idle"),
         hours_since_push=p.get("hours_since_push"),
+        in_meeting=bool(c.get("in_meeting", False)),
+        meeting_soon=bool(c.get("meeting_soon", False)),
+        day_load=c.get("day_load", "light"),
+        free_rest=bool(c.get("free_rest_of_day", True)),
+        cal_known=cal_known,
     )
 
 
@@ -136,7 +157,11 @@ def is_busy(oracle):
     return oracle is not None and oracle.coding_rhythm in ("heavy", "light")
 
 
-_FMT = "<BBBffBf"  # tag_id, moon_phase, sunset, temp_c, moon_illum, rhythm_id, hours_since_push
+_FMT_OLD = "<BBBffBf"  # pre-calendar layout (still readable for migration)
+SIZE_OLD = struct.calcsize(_FMT_OLD)
+# + flags byte (bit0 in_meeting, bit1 meeting_soon, bit2 free_rest, bit3 cal_known)
+# + load byte (index into _LOAD_IDS)
+_FMT = "<BBBffBfBB"
 SIZE = struct.calcsize(_FMT)
 
 
@@ -148,6 +173,13 @@ def pack(oracle):
         _RHYTHM_IDS.index(oracle.coding_rhythm) if oracle.coding_rhythm in _RHYTHM_IDS else 0
     )
     hours = oracle.hours_since_push if oracle.hours_since_push is not None else -1.0
+    flags = (
+        (0b0001 if oracle.in_meeting else 0)
+        | (0b0010 if oracle.meeting_soon else 0)
+        | (0b0100 if oracle.free_rest else 0)
+        | (0b1000 if oracle.cal_known else 0)
+    )
+    load_id = _LOAD_IDS.index(oracle.day_load) if oracle.day_load in _LOAD_IDS else 0
     return struct.pack(
         _FMT,
         tag_id,
@@ -157,12 +189,25 @@ def pack(oracle):
         oracle.moon_illum,
         rhythm_id,
         hours,
+        flags,
+        load_id,
     )
 
 
-def unpack(blob):
-    """Unpack binary form back into an Oracle."""
-    tag_id, phase, sunset, temp, illum, rhythm_id, hours = struct.unpack(_FMT, blob[:SIZE])
+def _oracle_from(
+    tag_id,
+    phase,
+    sunset,
+    temp,
+    illum,
+    rhythm_id,
+    hours,
+    in_meeting,
+    meeting_soon,
+    day_load,
+    free_rest,
+    cal_known,
+):
     return Oracle(
         weather_tag=_TAG_IDS[tag_id] if tag_id < len(_TAG_IDS) else "clear",
         temp_c=None if temp < -900.0 else temp,
@@ -171,6 +216,48 @@ def unpack(blob):
         sunset_soon=bool(sunset),
         coding_rhythm=_RHYTHM_IDS[rhythm_id] if rhythm_id < len(_RHYTHM_IDS) else "idle",
         hours_since_push=None if hours < 0.0 else hours,
+        in_meeting=in_meeting,
+        meeting_soon=meeting_soon,
+        day_load=day_load,
+        free_rest=free_rest,
+        cal_known=cal_known,
+    )
+
+
+def unpack(blob):
+    """Unpack binary form back into an Oracle. Old (pre-calendar) blobs read as cal unknown."""
+    if len(blob) >= SIZE:
+        tag_id, phase, sunset, temp, illum, rhythm_id, hours, flags, load_id = struct.unpack(
+            _FMT, blob[:SIZE]
+        )
+        return _oracle_from(
+            tag_id,
+            phase,
+            sunset,
+            temp,
+            illum,
+            rhythm_id,
+            hours,
+            bool(flags & 0b0001),
+            bool(flags & 0b0010),
+            _LOAD_IDS[load_id] if load_id < len(_LOAD_IDS) else "light",
+            bool(flags & 0b0100),
+            bool(flags & 0b1000),
+        )
+    tag_id, phase, sunset, temp, illum, rhythm_id, hours = struct.unpack(_FMT_OLD, blob[:SIZE_OLD])
+    return _oracle_from(
+        tag_id,
+        phase,
+        sunset,
+        temp,
+        illum,
+        rhythm_id,
+        hours,
+        False,
+        False,
+        "light",
+        True,
+        False,
     )
 
 
