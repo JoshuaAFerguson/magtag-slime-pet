@@ -292,6 +292,7 @@ def main():
             )
             was_sleeping = sleeping
             sleeping = statusbar.is_sleep_mode(inputs.light, sleeping)
+            in_meeting = oracle_mod.is_in_meeting(oracle)
 
             if events and not sleeping:
                 prev = state.expression
@@ -305,7 +306,7 @@ def main():
                 if oracle is not None:
                     state = evolve(state, mood=oracle_mod.mood_bias(state.mood, oracle))
                 ftier = friendship.tier(state.familiarity)
-                if sound and state.behavior == "greeting":
+                if sound and state.behavior == "greeting" and not in_meeting:
                     sound.play(pick_motif("greeting", ftier))
                 if state.behavior == "dizzy" and pixels:
                     pixels.flash((120, 0, 0))
@@ -355,7 +356,7 @@ def main():
                 last_scheduled = time.monotonic()
 
             if pixels:
-                if sleeping:
+                if sleeping or in_meeting:
                     pixels.breathe(state.mood, time.monotonic() - t0, rate=0.05)
                 else:
                     rate = 0.12 + (state.mood.energy / 100.0) * 0.35
