@@ -129,3 +129,32 @@ def test_dream_requires_token_when_configured(monkeypatch):
     c = _client(monkeypatch)
     assert c.post("/dream", json={}).status_code == 401
     assert c.post("/dream", json={}, headers={"Authorization": "Bearer sekret"}).status_code == 200
+
+
+def test_remember_appends_episode(monkeypatch, tmp_path):
+    p = str(tmp_path / "mem.jsonl")
+    monkeypatch.setattr(main_mod.config, "MEMORY_PATH", p)
+    monkeypatch.setattr(main_mod.config, "MEMORY_CAP", 10)
+    r = _client(monkeypatch).post("/remember", json={"weather": "rain", "moon": 4})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert len(main_mod.memory.load_episodes(p)) == 1
+
+
+def test_remember_requires_token_when_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "ORACLE_TOKEN", "sekret")
+    assert _client(monkeypatch).post("/remember", json={}).status_code == 401
+
+
+def test_dream_injects_recalled_memory(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(main_mod.memory, "load_episodes", lambda path: [{"weather": "rain"}])
+    monkeypatch.setattr(main_mod.memory, "recall", lambda eps, choice: "the day the rain came")
+
+    def capture(ctx):
+        seen.update(ctx)
+        return "a dream."
+
+    monkeypatch.setattr(main_mod.llm, "generate_dream", capture)
+    r = _client(monkeypatch).post("/dream", json={"fam": 2})
+    assert r.json()["dream"] == "a dream."
+    assert seen["memory"] == "the day the rain came"

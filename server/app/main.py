@@ -1,12 +1,13 @@
 """FastAPI home oracle: GET /oracle (weather + moon), GET /health."""
 
+import random
 import time
 from datetime import datetime, timezone
 
 import httpx
 from fastapi import Body, FastAPI, Header, HTTPException
 
-from . import calendar, config, github, inbox, llm, moon, oracle, weather
+from . import calendar, config, github, inbox, llm, memory, moon, oracle, weather
 
 app = FastAPI(title="Slime Oracle")
 
@@ -92,11 +93,28 @@ def get_oracle(authorization: str = Header(default="")) -> dict:
 
 @app.post("/dream")
 def post_dream(body: dict = Body(default={}), authorization: str = Header(default="")) -> dict:
-    """Generate an LLM dream line from the device-supplied derived context.
+    """Generate an LLM dream line from the device-supplied derived context + a recalled memory.
 
-    The device sends its full derived context (weather/moon/rhythm/day_load/inbox + fam/
-    tones/artifacts/season); we just run the model. Never 500s — returns {"dream": None}
-    on any failure so the device falls back to its on-device templates.
+    Never 500s — returns {"dream": None} on any failure so the device falls back to templates.
     """
     _check_auth(authorization)
-    return {"dream": llm.generate_dream(body or {})}
+    ctx = dict(body or {})
+    try:
+        recalled = memory.recall(memory.load_episodes(config.MEMORY_PATH), random.choice)
+        if recalled:
+            ctx["memory"] = recalled
+    except Exception:
+        pass
+    return {"dream": llm.generate_dream(ctx)}
+
+
+@app.post("/remember")
+def post_remember(body: dict = Body(default={}), authorization: str = Header(default="")) -> dict:
+    """Append the device's day-context to the episodic memory log. Never 500s."""
+    _check_auth(authorization)
+    try:
+        episode = memory.episode_from(body or {}, datetime.now().isoformat(timespec="minutes"))
+        memory.append_episode(config.MEMORY_PATH, episode, config.MEMORY_CAP)
+        return {"ok": True}
+    except Exception:
+        return {"ok": False}
