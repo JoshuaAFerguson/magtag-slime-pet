@@ -1,5 +1,6 @@
 import struct
 
+from slime import persistence
 from slime.persistence import _FORMAT_V1, _FORMAT_V2, BLOB_SIZE, NVM_VERSION, pack, unpack
 from slime.state import Mood, default_state, evolve
 
@@ -98,3 +99,34 @@ def test_v2_blob_migrates_to_v3_defaulting_journal_day():
     out = unpack(v2_blob)
     assert out.familiarity == 30.0 and out.visit_count == 4 and out.artifacts == 3
     assert out.last_journal_day_ordinal == 0
+
+
+def test_v4_roundtrip_preserves_milestones():
+    s = evolve(default_state(now=5.0), milestones=0b1011, total_boops=7)
+    s2 = persistence.unpack(persistence.pack(s))
+    assert s2.milestones == 0b1011
+    assert s2.total_boops == 7
+
+
+def test_v3_blob_migrates_milestones_to_zero():
+    s = default_state(now=1.0)
+    v3 = struct.pack(
+        persistence._FORMAT_V3,
+        3,
+        s.mood.energy,
+        s.mood.comfort,
+        s.mood.curiosity,
+        s.mood.sleepiness,
+        s.mood.affection,
+        s.last_seen,
+        s.longest_absence,
+        s.first_boot,
+        s.total_boops,
+        s.familiarity,
+        s.visit_count,
+        s.artifacts,
+        s.last_journal_day_ordinal,
+    )
+    out = persistence.unpack(v3)
+    assert out.milestones == 0
+    assert out.total_boops == s.total_boops

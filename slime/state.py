@@ -19,6 +19,7 @@ State = namedtuple(
         "visit_count",  # int
         "artifacts",  # int bitmask of collected dream artifacts
         "last_journal_day_ordinal",  # int days-since-epoch of the last journal entry
+        "milestones",  # int bitmask of reached long-term milestones
     ),
 )
 
@@ -47,6 +48,7 @@ def default_state(now=0.0):
         visit_count=0,
         artifacts=0,
         last_journal_day_ordinal=0,
+        milestones=0,
     )
 
 
@@ -70,4 +72,5 @@ def evolve(state, **changes):
         last_journal_day_ordinal=changes.get(
             "last_journal_day_ordinal", state.last_journal_day_ordinal
         ),
+        milestones=changes.get("milestones", state.milestones),
     )
