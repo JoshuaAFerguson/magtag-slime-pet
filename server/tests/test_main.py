@@ -147,8 +147,14 @@ def test_remember_requires_token_when_configured(monkeypatch):
 
 def test_dream_injects_recalled_memory(monkeypatch):
     seen = {}
+    recall_args = {}
     monkeypatch.setattr(main_mod.memory, "load_episodes", lambda path: [{"weather": "rain"}])
-    monkeypatch.setattr(main_mod.memory, "recall", lambda eps, choice: "the day the rain came")
+
+    def fake_recall(eps, choice):
+        recall_args["choice"] = choice
+        return "the day the rain came"
+
+    monkeypatch.setattr(main_mod.memory, "recall", fake_recall)
 
     def capture(ctx):
         seen.update(ctx)
@@ -158,3 +164,15 @@ def test_dream_injects_recalled_memory(monkeypatch):
     r = _client(monkeypatch).post("/dream", json={"fam": 2})
     assert r.json()["dream"] == "a dream."
     assert seen["memory"] == "the day the rain came"
+    # The selection strategy passed to recall is random.choice (injected, not pre-called).
+    assert recall_args["choice"] is main_mod.random.choice
+
+
+def test_remember_returns_not_ok_on_failure(monkeypatch):
+    def boom(ctx, now_iso):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(main_mod.memory, "episode_from", boom)
+    r = _client(monkeypatch).post("/remember", json={"weather": "rain"})
+    assert r.status_code == 200
+    assert r.json()["ok"] is False
