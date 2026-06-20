@@ -19,3 +19,5 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
 DREAM_MAX_CHARS = int(os.getenv("DREAM_MAX_CHARS", "120"))
+MEMORY_PATH = os.getenv("MEMORY_PATH", "/data/memory.jsonl")  # episodic log (mounted volume)
+MEMORY_CAP = int(os.getenv("MEMORY_CAP", "365"))  # keep at most this many most-recent episodes
