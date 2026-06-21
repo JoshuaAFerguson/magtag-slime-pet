@@ -130,3 +130,40 @@ def test_v3_blob_migrates_milestones_to_zero():
     out = persistence.unpack(v3)
     assert out.milestones == 0
     assert out.total_boops == s.total_boops
+
+
+def test_v5_roundtrip_preserves_visitors():
+    from slime.state import default_state, evolve
+
+    s = evolve(default_state(now=5.0), visitors=0b1101, milestones=0b11, total_boops=4)
+    s2 = persistence.unpack(persistence.pack(s))
+    assert s2.visitors == 0b1101
+    assert s2.milestones == 0b11
+    assert s2.total_boops == 4
+
+
+def test_v4_blob_migrates_visitors_to_zero():
+    from slime.state import default_state
+
+    s = default_state(now=1.0)
+    v4 = struct.pack(
+        persistence._FORMAT_V4,
+        4,
+        s.mood.energy,
+        s.mood.comfort,
+        s.mood.curiosity,
+        s.mood.sleepiness,
+        s.mood.affection,
+        s.last_seen,
+        s.longest_absence,
+        s.first_boot,
+        s.total_boops,
+        s.familiarity,
+        s.visit_count,
+        s.artifacts,
+        s.last_journal_day_ordinal,
+        s.milestones,
+    )
+    out = persistence.unpack(v4)
+    assert out.visitors == 0
+    assert out.milestones == s.milestones

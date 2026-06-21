@@ -97,3 +97,17 @@ def test_evolve_sets_milestones():
     s = evolve(default_state(), milestones=0b101)
     assert s.milestones == 0b101
     assert s.familiarity == 0.0
+
+
+def test_default_state_has_zero_visitors():
+    from slime.state import default_state
+
+    assert default_state().visitors == 0
+
+
+def test_evolve_sets_visitors():
+    from slime.state import default_state, evolve
+
+    s = evolve(default_state(), visitors=0b1010)
+    assert s.visitors == 0b1010
+    assert s.milestones == 0  # other fields preserved
