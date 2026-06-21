@@ -17,6 +17,7 @@ from slime import (
     seasons,
     statusbar,
     timekeeping,
+    visitors,
 )
 from slime import oracle as oracle_mod
 from slime.forms import choose_render
@@ -132,21 +133,28 @@ def _status_fields(synced_epoch, mono_at_sync, tz, oracle, battery, wifi_state):
     }
 
 
-def _render_frame(display, state, season=None, weather=None, oracle=None, fields=None):
+def _render_frame(
+    display, state, season=None, weather=None, oracle=None, fields=None, visitor=None
+):
     """Render the current form + a quip + the status bar. Returns updated state."""
     if not display:
         return state
     sleeping = state.mood.sleepiness >= _SLEEPY_FRAME
     ftier = friendship.tier(state.familiarity)
     frame = choose_render(state.mood, ftier, sleeping, season=season, weather=weather)
-    mem = None
-    if _choice((False, False, False, False, True)):  # ~1 in 5 frames, voice a remembered milestone
-        mem = milestones.memory_quip(state.milestones, _choice)
-    otag = oracle_mod.quip_tag(oracle) if oracle is not None else None
-    tag = otag or ("bonded" if ftier >= 3 else state.expression)
-    quip = mem or pick(tag) or pick(state.expression)
+    if visitor is not None:  # a guest takes the voice + a corner glyph this frame
+        quip = visitors.quip(visitor)
+        vicon = visitors.glyph(visitor)
+    else:
+        mem = None
+        if _choice((False, False, False, False, True)):  # ~1 in 5, voice a remembered milestone
+            mem = milestones.memory_quip(state.milestones, _choice)
+        otag = oracle_mod.quip_tag(oracle) if oracle is not None else None
+        tag = otag or ("bonded" if ftier >= 3 else state.expression)
+        quip = mem or pick(tag) or pick(state.expression)
+        vicon = None
     try:
-        display.render_frame(frame, quip or "", **(fields or {}))
+        display.render_frame(frame, quip or "", visitor_icon=vicon, **(fields or {}))
         state = evolve(state, last_seen=time.monotonic())
     except Exception:
         pass
@@ -181,6 +189,13 @@ def _choice(seq):
     return random.choice(seq)
 
 
+def _roll_visitor(oracle, season, tier):
+    """Rarely (~1 in 6) summon an eligible visitor key; None otherwise."""
+    if not _choice((False, False, False, False, False, True)):
+        return None
+    return visitors.pick_visitor(visitors.eligible_visitors(oracle, season, tier), _choice)
+
+
 def _dream_on_wake(display, sound, state, oracle=None, ring=None, season=None):
     """Generate and show a dream + maybe an artifact. Returns updated state.
 
@@ -211,7 +226,9 @@ def _dream_on_wake(display, sound, state, oracle=None, ring=None, season=None):
     return evolve(state, artifacts=artifacts, last_seen=time.monotonic())
 
 
-def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring, events, oracle):
+def _maybe_journal(
+    display, state, season, synced_epoch, mono_at_sync, tz, ring, events, oracle, visited_by=None
+):
     """On a new wall-clock day, append a journal record and show it. Returns (state, ring)."""
     if not season:  # no trustworthy date this power-cycle -> never fabricate one
         return state, ring
@@ -228,6 +245,7 @@ def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring,
             (0b1 if "double_tap" in events else 0)
             | (0b10 if oracle_mod.is_busy(oracle) else 0)
             | (0b100 if oracle_mod.is_inbox_heavy(oracle) else 0)
+            | (0b1000 if visited_by else 0)
         ),
         friendship.tier(state.familiarity),
     )
@@ -288,6 +306,10 @@ def main():
         ),
     )
 
+    visitor = _roll_visitor(oracle, season, friendship.tier(state.familiarity))
+    if visitor is not None:
+        state = evolve(state, visitors=visitors.collect(state.visitors, visitors.bit(visitor)))
+
     # WiFi "live" if either the clock or the oracle came through this cycle.
     wifi_state = (
         statusbar.WIFI_LIVE
@@ -310,13 +332,27 @@ def main():
     state = evolve(state, familiarity=fam, visit_count=visits)
 
     state, ring = _maybe_journal(
-        display, state, season, synced_epoch, mono_at_sync, tz, ring, events, oracle
+        display,
+        state,
+        season,
+        synced_epoch,
+        mono_at_sync,
+        tz,
+        ring,
+        events,
+        oracle,
+        visited_by=visitor,
     )
 
     batt0 = inputs.battery
     fields = _status_fields(synced_epoch, mono_at_sync, tz, oracle, batt0, wifi_state)
-    state = _render_frame(display, state, season, weather_form, oracle, fields)
+    state = _render_frame(display, state, season, weather_form, oracle, fields, visitor=visitor)
     persistence.save(state)
+    if visitor is not None and not oracle_mod.is_in_meeting(oracle):
+        if sound:
+            sound.play(pick_motif("greeting", friendship.tier(state.familiarity)))
+        if pixels:
+            pixels.flash((0, 80, 60))
 
     if choose_run_mode(inputs.on_usb, inputs.battery) == CONTINUOUS:
         t0 = time.monotonic()
@@ -397,6 +433,11 @@ def main():
                             state.milestones, oracle, state, friendship.tier(state.familiarity)
                         ),
                     )
+                    rv = _roll_visitor(oracle, season, friendship.tier(state.familiarity))
+                    if rv is not None:
+                        state = evolve(
+                            state, visitors=visitors.collect(state.visitors, visitors.bit(rv))
+                        )
                     wifi_state = (
                         statusbar.WIFI_LIVE
                         if (synced_epoch is not None or oracle is not None)
@@ -406,8 +447,15 @@ def main():
                     fields = _status_fields(
                         synced_epoch, mono_at_sync, tz, oracle, batt, wifi_state
                     )
-                    state = _render_frame(display, state, season, weather_form, oracle, fields)
+                    state = _render_frame(
+                        display, state, season, weather_form, oracle, fields, visitor=rv
+                    )
                     persistence.save(state)
+                    if rv is not None and not in_meeting:
+                        if sound:
+                            sound.play(pick_motif("greeting", friendship.tier(state.familiarity)))
+                        if pixels:
+                            pixels.flash((0, 80, 60))
                 except Exception as exc:  # never let a periodic refresh crash the creature
                     print("periodic refresh skipped:", exc)
                 last_refresh = time.monotonic()
