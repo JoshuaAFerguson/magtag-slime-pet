@@ -61,3 +61,13 @@ def test_generate_dream_none_when_provider_raises(monkeypatch):
 def test_generate_dream_none_for_unknown_provider(monkeypatch):
     monkeypatch.setattr(config, "DREAM_PROVIDER", "mystery")
     assert llm.generate_dream({}) is None
+
+
+def test_build_prompt_includes_memory_when_set():
+    _, user = build_prompt({"memory": "the night of the storm"})
+    assert "remembered moment: the night of the storm" in user
+
+
+def test_build_prompt_omits_memory_when_absent():
+    _, user = build_prompt({})
+    assert "remembered moment" not in user

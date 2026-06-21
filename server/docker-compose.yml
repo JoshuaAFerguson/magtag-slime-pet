@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    volumes:
+      - slime-memory:/data
     environment:
       SLIME_LAT: "33.4484"
       SLIME_LON: "-112.0740"
@@ -31,3 +33,8 @@ services:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-claude-haiku-4-5}"
       DREAM_MAX_CHARS: "${DREAM_MAX_CHARS:-120}"
+      MEMORY_PATH: "${MEMORY_PATH:-/data/memory.jsonl}"
+      MEMORY_CAP: "${MEMORY_CAP:-365}"
+
+volumes:
+  slime-memory:

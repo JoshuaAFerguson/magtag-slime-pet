@@ -28,8 +28,7 @@ def build_prompt(context, max_chars=120):
     user = (
         "Mood hints - season: {season}; weather: {weather}; moon phase: {moon}; "
         "work rhythm: {rhythm}; day load: {day_load}; inbox: {inbox}; bond level: {fam}; "
-        "recent days felt: {tones}; small treasures found: {artifacts}. "
-        "Write the dream now."
+        "recent days felt: {tones}; small treasures found: {artifacts}."
     ).format(
         season=g("season", "unknown"),
         weather=g("weather", "calm"),
@@ -41,6 +40,10 @@ def build_prompt(context, max_chars=120):
         tones=tones_str,
         artifacts=g("artifacts", 0),
     )
+    memory_hint = context.get("memory")
+    if memory_hint:
+        user += " You may gently reference this remembered moment: {}.".format(memory_hint)
+    user += " Write the dream now."
     return system, user
 
 

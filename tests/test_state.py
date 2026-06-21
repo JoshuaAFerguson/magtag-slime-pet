@@ -83,3 +83,17 @@ def test_state_has_last_journal_day_ordinal():
     s2 = evolve(s, last_journal_day_ordinal=42)
     assert s2.last_journal_day_ordinal == 42
     assert s.last_journal_day_ordinal == 0
+
+
+def test_default_state_has_zero_milestones():
+    from slime.state import default_state
+
+    assert default_state().milestones == 0
+
+
+def test_evolve_sets_milestones():
+    from slime.state import default_state, evolve
+
+    s = evolve(default_state(), milestones=0b101)
+    assert s.milestones == 0b101
+    assert s.familiarity == 0.0

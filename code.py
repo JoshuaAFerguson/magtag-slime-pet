@@ -7,7 +7,9 @@ from slime import (
     dreams,
     friendship,
     journal,
+    milestones,
     netdream,
+    netmemory,
     netoracle,
     nettime,
     persistence,
@@ -137,9 +139,12 @@ def _render_frame(display, state, season=None, weather=None, oracle=None, fields
     sleeping = state.mood.sleepiness >= _SLEEPY_FRAME
     ftier = friendship.tier(state.familiarity)
     frame = choose_render(state.mood, ftier, sleeping, season=season, weather=weather)
+    mem = None
+    if _choice((False, False, False, False, True)):  # ~1 in 5 frames, voice a remembered milestone
+        mem = milestones.memory_quip(state.milestones, _choice)
     otag = oracle_mod.quip_tag(oracle) if oracle is not None else None
     tag = otag or ("bonded" if ftier >= 3 else state.expression)
-    quip = pick(tag) or pick(state.expression)
+    quip = mem or pick(tag) or pick(state.expression)
     try:
         display.render_frame(frame, quip or "", **(fields or {}))
         state = evolve(state, last_seen=time.monotonic())
@@ -228,6 +233,15 @@ def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring,
     )
     ring = journal.append(ring, record)
     journal.save_ring(ring)
+    netmemory.post(
+        dreams.dream_context(
+            friendship.tier(state.familiarity),
+            state.artifacts,
+            journal.entries(ring),
+            season,
+            oracle,
+        )
+    )
     state = evolve(state, last_journal_day_ordinal=ordinal)
     if display:
         recs = journal.entries(ring)
@@ -271,6 +285,12 @@ def main():
     if oracle is not None:
         state = evolve(state, mood=oracle_mod.mood_bias(state.mood, oracle))
     weather_form = oracle_mod.form_override(oracle)
+    state = evolve(
+        state,
+        milestones=milestones.evaluate(
+            state.milestones, oracle, state, friendship.tier(state.familiarity)
+        ),
+    )
 
     # WiFi "live" if either the clock or the oracle came through this cycle.
     wifi_state = (
@@ -375,6 +395,12 @@ def main():
                     if new_oracle is not None:  # keep the last good oracle on a failed fetch
                         oracle = new_oracle
                         weather_form = oracle_mod.form_override(oracle)
+                    state = evolve(
+                        state,
+                        milestones=milestones.evaluate(
+                            state.milestones, oracle, state, friendship.tier(state.familiarity)
+                        ),
+                    )
                     wifi_state = (
                         statusbar.WIFI_LIVE
                         if (synced_epoch is not None or oracle is not None)
