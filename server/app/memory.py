@@ -35,10 +35,11 @@ def episode_from(context, now_iso):
         "calendar": context.get("day_load"),
         "inbox": context.get("inbox"),
         "tone": (context.get("tones") or ["quiet"])[0],
+        "journal": context.get("journal"),
     }
 
 
-def _kind(ep):
+def episode_kind(ep):
     """Classify a single episode's most notable kind, or None."""
     w = ep.get("weather")
     if w in ("storm_incoming", "monsoon"):
@@ -66,7 +67,7 @@ def recall(episodes, choice):
     `choice(kinds)` selects one kind from the notable-kind list (duplicates weight toward
     common kinds); the phrase is looked up per kind.
     """
-    kinds = [k for k in (_kind(ep) for ep in episodes) if k]
+    kinds = [k for k in (episode_kind(ep) for ep in episodes) if k]
     if not kinds:
         return None
     return _RECALL[choice(kinds)]

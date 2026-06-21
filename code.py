@@ -233,19 +233,15 @@ def _maybe_journal(display, state, season, synced_epoch, mono_at_sync, tz, ring,
     )
     ring = journal.append(ring, record)
     journal.save_ring(ring)
-    netmemory.post(
-        dreams.dream_context(
-            friendship.tier(state.familiarity),
-            state.artifacts,
-            journal.entries(ring),
-            season,
-            oracle,
-        )
+    recs = journal.entries(ring)
+    line = journal.generate_entry(recs[-1], len(recs), _choice)
+    ctx = dreams.dream_context(
+        friendship.tier(state.familiarity), state.artifacts, recs, season, oracle
     )
+    ctx["journal"] = line  # local dict, safe to augment; reaches /remember -> episode_from
+    netmemory.post(ctx)
     state = evolve(state, last_journal_day_ordinal=ordinal)
     if display:
-        recs = journal.entries(ring)
-        line = journal.generate_entry(recs[-1], len(recs), _choice)
         try:
             display.render_journal([line])
         except Exception:

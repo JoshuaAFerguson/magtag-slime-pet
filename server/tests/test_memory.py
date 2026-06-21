@@ -20,6 +20,7 @@ def test_episode_from_reduces_context():
         "calendar": "busy",
         "inbox": "flooded",
         "tone": "busy",
+        "journal": None,
     }
 
 
@@ -58,3 +59,16 @@ def test_load_missing_or_corrupt(tmp_path):
     p.write_text('{"ok": 1}\nNOT JSON\n{"ok": 2}\n')
     eps = memory.load_episodes(str(p))
     assert [e["ok"] for e in eps] == [1, 2]
+
+
+def test_episode_from_keeps_journal_line():
+    ctx = {"weather": "clear", "journal": "you seemed busy today"}
+    ep = memory.episode_from(ctx, "2026-06-21T09:00")
+    assert ep["journal"] == "you seemed busy today"
+
+
+def test_episode_kind_classifies():
+    assert memory.episode_kind({"weather": "storm_incoming"}) == "storm"
+    assert memory.episode_kind({"weather": "clear", "moon": 4}) == "full_moon"
+    assert memory.episode_kind({"weather": "clear", "moon": 2, "inbox": "flooded"}) == "flooded"
+    assert memory.episode_kind({"weather": "clear", "moon": 2, "inbox": "clear"}) is None

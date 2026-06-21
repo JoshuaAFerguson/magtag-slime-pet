@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 
 import httpx
 from fastapi import Body, FastAPI, Header, HTTPException
+from fastapi.responses import HTMLResponse
 
-from . import calendar, config, github, inbox, llm, memory, moon, oracle, weather
+from . import calendar, config, github, inbox, journal_view, llm, memory, moon, oracle, weather
 
 app = FastAPI(title="Slime Oracle")
 
@@ -120,3 +121,14 @@ def post_remember(body: dict = Body(default={}), authorization: str = Header(def
         return {"ok": True}
     except Exception:
         return {"ok": False}
+
+
+@app.get("/journal", response_class=HTMLResponse)
+def get_journal(month: str = "", kind: str = "") -> HTMLResponse:
+    """Read-only HTML archive of the pet's days. Open on the LAN (no auth). Never 500s."""
+    try:
+        episodes = memory.load_episodes(config.MEMORY_PATH)
+    except Exception:
+        episodes = []
+    html_doc = journal_view.render_page(episodes, month or None, kind or None)
+    return HTMLResponse(content=html_doc)
