@@ -211,6 +211,68 @@ def _status_icons():
     print(f"wrote assets/statusicons.bmp ({img.width}x{img.height}, {n} frames)")
 
 
+def _visitor_icons():
+    """8 grayscale 12x12 visitor glyphs: owl, snail, firefly, moth, fox, beetle, sparrow, cat."""
+    n, sz = 8, 12
+    img = Image.new("P", (sz * n, sz), WHITE)
+    img.putpalette([0, 0, 0, 90, 90, 90, 170, 170, 170, 255, 255, 255] + [0] * (256 * 3 - 12))
+    d = ImageDraw.Draw(img)
+
+    def ox(i):
+        return i * sz
+
+    # 0 owl: round body + two eyes + ear tufts
+    d.ellipse([ox(0) + 2, 2, ox(0) + 10, 11], fill=GRAY, outline=BLACK)
+    d.line([ox(0) + 3, 2, ox(0) + 4, 0], fill=BLACK)
+    d.line([ox(0) + 9, 2, ox(0) + 8, 0], fill=BLACK)
+    d.ellipse([ox(0) + 3, 4, ox(0) + 5, 6], fill=BLACK)
+    d.ellipse([ox(0) + 7, 4, ox(0) + 9, 6], fill=BLACK)
+
+    # 1 snail: shell spiral + body
+    d.line([ox(1) + 1, 10, ox(1) + 9, 10], fill=BLACK)
+    d.ellipse([ox(1) + 3, 3, ox(1) + 10, 10], fill=GRAY, outline=BLACK)
+    d.ellipse([ox(1) + 5, 5, ox(1) + 8, 8], outline=BLACK)
+    d.line([ox(1) + 1, 10, ox(1) + 1, 7], fill=BLACK)
+
+    # 2 firefly: body + glow dot
+    d.ellipse([ox(2) + 4, 3, ox(2) + 8, 9], fill=BLACK)
+    d.ellipse([ox(2) + 5, 8, ox(2) + 9, 12], fill=GRAY, outline=BLACK)
+    d.line([ox(2) + 4, 3, ox(2) + 2, 1], fill=BLACK)
+    d.line([ox(2) + 8, 3, ox(2) + 10, 1], fill=BLACK)
+
+    # 3 moth: two wings + body
+    d.ellipse([ox(3) + 1, 3, ox(3) + 6, 10], fill=GRAY, outline=BLACK)
+    d.ellipse([ox(3) + 6, 3, ox(3) + 11, 10], fill=GRAY, outline=BLACK)
+    d.rectangle([ox(3) + 5, 3, ox(3) + 7, 10], fill=BLACK)
+
+    # 4 fox: triangular head + ears
+    d.polygon([ox(4) + 2, 3, ox(4) + 10, 3, ox(4) + 6, 11], fill=GRAY, outline=BLACK)
+    d.polygon([ox(4) + 2, 3, ox(4) + 4, 0, ox(4) + 5, 4], fill=BLACK)
+    d.polygon([ox(4) + 10, 3, ox(4) + 8, 0, ox(4) + 7, 4], fill=BLACK)
+
+    # 5 beetle: oval body + center seam + legs
+    d.ellipse([ox(5) + 3, 2, ox(5) + 9, 11], fill=BLACK)
+    d.line([ox(5) + 6, 2, ox(5) + 6, 11], fill=GRAY)
+    for ly in (4, 6, 8):
+        d.line([ox(5) + 3, ly, ox(5) + 1, ly - 1], fill=BLACK)
+        d.line([ox(5) + 9, ly, ox(5) + 11, ly - 1], fill=BLACK)
+
+    # 6 sparrow: body + wing + beak
+    d.ellipse([ox(6) + 2, 4, ox(6) + 9, 10], fill=GRAY, outline=BLACK)
+    d.polygon([ox(6) + 9, 6, ox(6) + 12, 5, ox(6) + 9, 8], fill=BLACK)
+    d.arc([ox(6) + 3, 4, ox(6) + 8, 9], 200, 340, fill=BLACK)
+
+    # 7 cat: round head + ears + whiskers
+    d.ellipse([ox(7) + 2, 4, ox(7) + 10, 11], fill=GRAY, outline=BLACK)
+    d.polygon([ox(7) + 2, 5, ox(7) + 3, 1, ox(7) + 5, 4], fill=BLACK)
+    d.polygon([ox(7) + 10, 5, ox(7) + 9, 1, ox(7) + 7, 4], fill=BLACK)
+    d.line([ox(7) + 1, 8, ox(7) + 4, 8], fill=BLACK)
+    d.line([ox(7) + 8, 8, ox(7) + 11, 8], fill=BLACK)
+
+    img.save("assets/visitors.bmp")
+    print(f"wrote assets/visitors.bmp ({img.width}x{img.height}, {n} frames)")
+
+
 def main():
     sheet = Image.new("P", (FRAME * len(POSES), FRAME), WHITE)
     # 4-level grayscale palette (indices map to E-Ink grays)
@@ -251,6 +313,7 @@ def main():
     print(f"wrote assets/accents.bmp ({accents.width}x{accents.height}, 5 frames)")
 
     _status_icons()
+    _visitor_icons()
 
 
 if __name__ == "__main__":
