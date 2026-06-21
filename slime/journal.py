@@ -85,6 +85,8 @@ def generate_entry(record, day_number, choice):
     else:
         closing = choice((_MOOD_WORD.get(mood_dom, "i watched the clouds"),))
     line = "Day {} - {}. {}. {}.".format(day_number, ambience, presence, closing)
+    # 0b1000 is a journal-record flag bit (next free journal bit is 0b10000); it is unrelated to
+    # the moth's keepsake bit in state.visitors, which lives in a separate field.
     if flags & 0b1000:
         line += " a visitor came by."
     return line

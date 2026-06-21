@@ -433,6 +433,9 @@ def main():
                             state.milestones, oracle, state, friendship.tier(state.familiarity)
                         ),
                     )
+                    # A visit during a same-day refresh collects the keepsake + shows the quip/
+                    # glyph/cue, but is not journaled: the journal is a once-per-day entry written
+                    # at the new-day boot. The keepsake bitmask is the permanent record of visits.
                     rv = _roll_visitor(oracle, season, friendship.tier(state.familiarity))
                     if rv is not None:
                         state = evolve(
