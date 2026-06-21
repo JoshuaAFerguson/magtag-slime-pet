@@ -176,3 +176,49 @@ def test_remember_returns_not_ok_on_failure(monkeypatch):
     r = _client(monkeypatch).post("/remember", json={"weather": "rain"})
     assert r.status_code == 200
     assert r.json()["ok"] is False
+
+
+def test_journal_page_renders_without_auth(monkeypatch):
+    eps = [
+        {"date": "2026-06-01T08:00", "weather": "clear", "moon": 2, "journal": "first day"},
+        {
+            "date": "2026-06-20T08:00",
+            "weather": "storm_incoming",
+            "moon": 2,
+            "journal": "a big storm",
+        },
+    ]
+    monkeypatch.setattr(main_mod.memory, "load_episodes", lambda path: eps)
+    r = _client(monkeypatch).get("/journal")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "a big storm" in r.text
+    # newest-first
+    assert r.text.index("2026-06-20") < r.text.index("2026-06-01")
+
+
+def test_journal_page_filters_by_kind(monkeypatch):
+    eps = [
+        {"date": "2026-06-01", "weather": "clear", "moon": 2, "journal": "calm"},
+        {"date": "2026-06-02", "weather": "storm_incoming", "moon": 2, "journal": "stormy"},
+    ]
+    monkeypatch.setattr(main_mod.memory, "load_episodes", lambda path: eps)
+    r = _client(monkeypatch).get("/journal?kind=storm")
+    assert "stormy" in r.text and "calm" not in r.text
+
+
+def test_journal_page_open_even_when_token_configured(monkeypatch):
+    monkeypatch.setattr(main_mod.config, "ORACLE_TOKEN", "sekret")
+    monkeypatch.setattr(main_mod.memory, "load_episodes", lambda path: [])
+    # The archive page is intentionally NOT token-gated.
+    assert _client(monkeypatch).get("/journal").status_code == 200
+
+
+def test_journal_page_never_500s_on_load_failure(monkeypatch):
+    def boom(path):
+        raise RuntimeError("disk gone")
+
+    monkeypatch.setattr(main_mod.memory, "load_episodes", boom)
+    r = _client(monkeypatch).get("/journal")
+    assert r.status_code == 200
+    assert "no entries yet" in r.text.lower()
