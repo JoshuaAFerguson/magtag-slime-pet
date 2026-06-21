@@ -29,7 +29,7 @@ def evaluate(flags, oracle, state, tier):
             new |= FIRST_STORM
         if oracle.moon_phase == 4:
             new |= FULL_MOON_NIGHT
-    if tier >= 3:
+    if tier >= 3:  # a persisting truth ("we've come a long way"), not a one-time transition
         new |= BONDED
     if (state.artifacts & _ALL_ARTIFACTS) == _ALL_ARTIFACTS:
         new |= COLLECTOR

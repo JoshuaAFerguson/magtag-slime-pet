@@ -113,7 +113,9 @@ def post_remember(body: dict = Body(default={}), authorization: str = Header(def
     """Append the device's day-context to the episodic memory log. Never 500s."""
     _check_auth(authorization)
     try:
-        episode = memory.episode_from(body or {}, datetime.now().isoformat(timespec="minutes"))
+        episode = memory.episode_from(
+            body or {}, datetime.now(timezone.utc).isoformat(timespec="minutes")
+        )
         memory.append_episode(config.MEMORY_PATH, episode, config.MEMORY_CAP)
         return {"ok": True}
     except Exception:

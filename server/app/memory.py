@@ -6,6 +6,12 @@ derived buckets/tones are stored — never event content.
 
 import json
 import os
+import threading
+
+# Serialize the read-modify-write in append_episode. The device posts once per journal day
+# so contention is effectively nil, but FastAPI runs sync endpoints in a thread pool, so this
+# guards against a corrupted/double-trimmed log if two /remember calls ever overlap.
+_APPEND_LOCK = threading.Lock()
 
 _RECALL = {
     "storm": "the day a desert storm rolled in",
@@ -68,18 +74,19 @@ def recall(episodes, choice):
 
 def append_episode(path, episode, cap):
     """Append one episode as a JSON line; keep at most `cap` most-recent lines."""
-    try:
-        with open(path) as f:
-            lines = [ln for ln in f.read().splitlines() if ln.strip()]
-    except OSError:
-        lines = []
-    lines.append(json.dumps(episode))
-    lines = lines[-cap:]
-    directory = os.path.dirname(path)
-    if directory:
-        os.makedirs(directory, exist_ok=True)
-    with open(path, "w") as f:
-        f.write("\n".join(lines) + "\n")
+    with _APPEND_LOCK:
+        try:
+            with open(path) as f:
+                lines = [ln for ln in f.read().splitlines() if ln.strip()]
+        except OSError:
+            lines = []
+        lines.append(json.dumps(episode))
+        lines = lines[-cap:]
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(path, "w") as f:
+            f.write("\n".join(lines) + "\n")
 
 
 def load_episodes(path):
