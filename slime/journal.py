@@ -84,7 +84,10 @@ def generate_entry(record, day_number, choice):
         closing = "the inbox ran deep"
     else:
         closing = choice((_MOOD_WORD.get(mood_dom, "i watched the clouds"),))
-    return "Day {} - {}. {}. {}.".format(day_number, ambience, presence, closing)
+    line = "Day {} - {}. {}. {}.".format(day_number, ambience, presence, closing)
+    if flags & 0b1000:
+        line += " a visitor came by."
+    return line
 
 
 def save_ring(ring):
