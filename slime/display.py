@@ -120,6 +120,25 @@ class Display:
         div_tg = displayio.TileGrid(div, pixel_shader=div_pal, x=0, y=_BAR_H + 1)
         self._root.append(div_tg)
 
+        # Visitor glyph (a guest creature), drawn in the bottom-left corner during a visit.
+        # The sheet is optional — guard its load so a missing file never kills the display.
+        self._visitor_tg = None
+        self._visitor_hidden = True
+        try:
+            self._visitor_bmp = displayio.OnDiskBitmap("/assets/visitors.bmp")
+            self._visitor_tg = displayio.TileGrid(
+                self._visitor_bmp,
+                pixel_shader=self._visitor_bmp.pixel_shader,
+                width=1,
+                height=1,
+                tile_width=12,
+                tile_height=12,
+            )
+            self._visitor_tg.x = 4
+            self._visitor_tg.y = self._display.height - 16
+        except Exception:
+            self._visitor_tg = None
+
     def _set_tile(self, tg, hidden_attr, index):
         """Show a bar tile at `index`, or remove it from the scene when index is None."""
         hidden = getattr(self, hidden_attr)
@@ -145,6 +164,7 @@ class Display:
         weather_icon=None,
         wifi_state=None,
         mail_icon=None,
+        visitor_icon=None,
     ):
         """Set the sprite frame + quip + status bar fields and refresh.
 
@@ -163,6 +183,16 @@ class Display:
         self._set_tile(self._weather, "_weather_hidden", weather_icon)
         self._set_tile(self._wifi, "_wifi_hidden", wifi_state)
         self._set_tile(self._mail, "_mail_hidden", mail_icon)
+        if self._visitor_tg is not None:
+            if visitor_icon is None:
+                if not self._visitor_hidden and self._visitor_tg in self._root:
+                    self._root.remove(self._visitor_tg)
+                    self._visitor_hidden = True
+            else:
+                self._visitor_tg[0] = visitor_icon
+                if self._visitor_hidden:
+                    self._root.append(self._visitor_tg)
+                    self._visitor_hidden = False
 
         self._display.root_group = self._root
         while self._display.time_to_refresh > 0:

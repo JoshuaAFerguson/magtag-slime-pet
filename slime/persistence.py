@@ -5,7 +5,7 @@ import struct
 from slime import mood as mood_engine
 from slime.state import Mood, State, default_state
 
-NVM_VERSION = 4
+NVM_VERSION = 5
 
 # v1 (Phase 0): version + 5 mood floats + last_seen + longest_absence +
 # first_boot + total_boops.
@@ -25,14 +25,18 @@ _SIZE_V3 = struct.calcsize(_FORMAT_V3)
 _FORMAT_V4 = "<B5ffffIfIIII"
 _SIZE_V4 = struct.calcsize(_FORMAT_V4)
 
-BLOB_SIZE = _SIZE_V4
+# v5 (Phase 2c-iv): v4 fields + visitors (I).
+_FORMAT_V5 = "<B5ffffIfIIIII"
+_SIZE_V5 = struct.calcsize(_FORMAT_V5)
+
+BLOB_SIZE = _SIZE_V5
 
 
 def pack(state):
-    """Serialize the durable parts of a State to a v4 NVM blob."""
+    """Serialize the durable parts of a State to a v5 NVM blob."""
     m = state.mood
     return struct.pack(
-        _FORMAT_V4,
+        _FORMAT_V5,
         NVM_VERSION,
         m.energy,
         m.comfort,
@@ -48,6 +52,7 @@ def pack(state):
         state.artifacts,
         state.last_journal_day_ordinal,
         state.milestones,
+        state.visitors,
     )
 
 
@@ -62,6 +67,7 @@ def _build(
     artifacts,
     last_journal_day_ordinal,
     milestones,
+    visitors,
 ):
     """Construct a State from deserialized fields."""
     return State(
@@ -77,38 +83,45 @@ def _build(
         artifacts=artifacts,
         last_journal_day_ordinal=last_journal_day_ordinal,
         milestones=milestones,
+        visitors=visitors,
     )
 
 
 def unpack(blob):
-    """Deserialize a v4 blob, migrating v3/v2/v1. Raises ValueError on bad data."""
+    """Deserialize a v5 blob, migrating v4/v3/v2/v1. Raises ValueError on bad data."""
     if len(blob) < 1:
         raise ValueError("nvm blob empty")
     version = blob[0]
+    if version == 5:
+        if len(blob) < _SIZE_V5:
+            raise ValueError("nvm v5 blob too short")
+        f = struct.unpack(_FORMAT_V5, blob[:_SIZE_V5])
+        mood = Mood(*f[1:6])
+        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], f[13], f[14], f[15])
     if version == 4:
         if len(blob) < _SIZE_V4:
             raise ValueError("nvm v4 blob too short")
         f = struct.unpack(_FORMAT_V4, blob[:_SIZE_V4])
         mood = Mood(*f[1:6])
-        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], f[13], f[14])
+        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], f[13], f[14], 0)
     if version == 3:
         if len(blob) < _SIZE_V3:
             raise ValueError("nvm v3 blob too short")
         f = struct.unpack(_FORMAT_V3, blob[:_SIZE_V3])
         mood = Mood(*f[1:6])
-        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], f[13], 0)
+        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], f[13], 0, 0)
     if version == 2:
         if len(blob) < _SIZE_V2:
             raise ValueError("nvm v2 blob too short")
         f = struct.unpack(_FORMAT_V2, blob[:_SIZE_V2])
         mood = Mood(*f[1:6])
-        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], 0, 0)
+        return _build(mood, f[6], f[7], f[8], f[9], f[10], f[11], f[12], 0, 0, 0)
     if version == 1:
         if len(blob) < _SIZE_V1:
             raise ValueError("nvm v1 blob too short")
         f = struct.unpack(_FORMAT_V1, blob[:_SIZE_V1])
         mood = Mood(*f[1:6])
-        return _build(mood, f[6], f[7], f[8], f[9], 0.0, 0, 0, 0, 0)
+        return _build(mood, f[6], f[7], f[8], f[9], 0.0, 0, 0, 0, 0, 0)
     raise ValueError("nvm version unknown")
 
 

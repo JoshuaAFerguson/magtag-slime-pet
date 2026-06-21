@@ -66,3 +66,13 @@ def test_heavy_inbox_closing():
 def test_busy_still_wins_over_inbox():
     line = generate_entry(_rec(0b110), 5, lambda opts: opts[0])
     assert "busy" in line.lower()
+
+
+def test_generate_entry_notes_a_visitor():
+    line = generate_entry((10, 0, 0, 0b1000, 1), 3, lambda o: o[0])
+    assert "a visitor came by" in line.lower()
+
+
+def test_generate_entry_without_visitor_flag_has_no_visitor_line():
+    line = generate_entry((10, 0, 0, 0b0, 1), 3, lambda o: o[0])
+    assert "visitor" not in line.lower()
